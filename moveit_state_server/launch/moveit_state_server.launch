@@ -1,0 +1,4 @@
+<?xml version="1.0"?>
+<launch>
+  <node name="moveit_state_server" pkg="moveit_state_server" type="moveit_state_server" respawn="false" output="screen"/>
+</launch>

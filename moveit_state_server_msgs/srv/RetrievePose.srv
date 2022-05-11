@@ -1,0 +1,4 @@
+std_msgs/Empty store_current_pose
+---
+float64[] joint_states
+string[] names

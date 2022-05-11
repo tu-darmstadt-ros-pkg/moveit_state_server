@@ -1,0 +1,3 @@
+std_msgs/Empty store_current_pose
+---
+std_msgs/Bool success

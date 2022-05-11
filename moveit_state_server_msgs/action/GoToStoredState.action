@@ -1,0 +1,5 @@
+std_msgs/Empty go
+---
+int32 success
+---
+int32 state
