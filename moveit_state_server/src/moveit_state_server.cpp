@@ -6,7 +6,7 @@
 
 namespace moveit_state_server
 {
-MoveitStateServer::MoveitStateServer():as_(nh_, "/test", false)
+MoveitStateServer::MoveitStateServer():as_(nh_, "/move_arm_to_stored_pose", false)
 {
   pnh_ = ros::NodeHandle( "~" );
   robot_model_loader::RobotModelLoader robot_model_loader( "robot_description", false );
