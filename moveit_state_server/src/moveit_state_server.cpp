@@ -11,7 +11,6 @@ MoveitStateServer::MoveitStateServer():as_(nh_, "/move_arm_to_stored_pose", fals
   pnh_ = ros::NodeHandle( "~" );
   robot_model_loader::RobotModelLoader robot_model_loader( "robot_description", false );
   moveit_robot_model_ = robot_model_loader.getModel();
-  ROS_INFO_STREAM("Hello");
   store_pose_service =
       pnh_.advertiseService( "/store_arm_joint_states", &MoveitStateServer::storePoseService, this );
   retrieve_pose_server =
@@ -52,20 +51,6 @@ bool MoveitStateServer::storePoseService( moveit_state_server_msgs::StorePoseReq
           srv.response.scene.robot_state.joint_state.position[i] );
     }
   }
-  for(auto & n:joint_names_) ROS_INFO_STREAM(n);
-  ROS_INFO("DONE");
-  ROS_INFO_STREAM("length of joint names"<<joint_names_.size());
-/*
-  const moveit::core::JointModelGroup *joint_model_group =
-      move_group_interface_->getCurrentState()->getJointModelGroup( planning_group_ );
-  moveit::core::RobotStatePtr current_state = move_group_interface_->getCurrentState();
-  joint_states_.clear();
-  current_state->copyJointGroupPositions( joint_model_group, joint_states_ );
-  res.success.data = true;
-  for ( size_t i = 0; i < joint_states_.size(); i++ ) {
-    ROS_INFO_STREAM( "i: " << joint_states_[i] );
-  }
-*/
   res.success.data = true;
   return true;
 }
@@ -124,7 +109,7 @@ void MoveitStateServer::goalCB() {
 
 }
 void MoveitStateServer::preemptCB(){
-  ROS_INFO_STREAM("Preempted");
+  ROS_INFO_STREAM("[moveit_state_server] Preempted moveit_state_server.");
 }
 
 }
