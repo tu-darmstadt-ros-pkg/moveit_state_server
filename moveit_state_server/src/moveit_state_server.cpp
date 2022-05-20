@@ -9,23 +9,33 @@ namespace moveit_state_server
 MoveitStateServer::MoveitStateServer():as_(nh_, "/move_arm_to_stored_pose", false)
 {
   pnh_ = ros::NodeHandle( "~" );
-  robot_model_loader::RobotModelLoader robot_model_loader( "robot_description", false );
-  moveit_robot_model_ = robot_model_loader.getModel();
-  store_pose_service =
-      pnh_.advertiseService( "/store_arm_joint_states", &MoveitStateServer::storePoseService, this );
-  retrieve_pose_server =
-      pnh_.advertiseService( "/retrieve_arm_joint_states", &MoveitStateServer::retrievePoseService, this );
-  get_planning_scene_ = nh_.serviceClient<moveit_msgs::GetPlanningScene>("/get_planning_scene");
-  switch_controllers_ = nh_.serviceClient<controller_manager_msgs::SwitchController>("/manipulator_arm_control/controller_manager/switch_controller");
-  planning_group_ = "arm_group";
-  move_group_interface_.reset( new moveit::planning_interface::MoveGroupInterface( planning_group_ ) );
-  const moveit::core::JointModelGroup *joint_model_group =
-      move_group_interface_->getRobotModel()->getJointModelGroup( planning_group_ );
-  joint_names_ =joint_model_group->getActiveJointModelNames();
+  ros::Duration(5).sleep();
+  if(!ros::service::exists("/get_planning_scene",false)){
+        ROS_WARN_STREAM("[moveit_state_server] Moveit is not available on the robot. MoveitStateServer won't work.");
+  }else{
+    robot_model_loader::RobotModelLoader robot_model_loader( "robot_description", false );
+    moveit_robot_model_ = robot_model_loader.getModel();
+    store_pose_service =
+        pnh_.advertiseService( "/store_arm_joint_states", &MoveitStateServer::storePoseService, this );
+    retrieve_pose_server =
+        pnh_.advertiseService( "/retrieve_arm_joint_states", &MoveitStateServer::retrievePoseService, this );
+    get_planning_scene_ = nh_.serviceClient<moveit_msgs::GetPlanningScene>("/get_planning_scene");
+    switch_controllers_ = nh_.serviceClient<controller_manager_msgs::SwitchController>("/manipulator_arm_control/controller_manager/switch_controller");
+    try{
+      planning_group_ = "arm_group";
+      move_group_interface_.reset( new moveit::planning_interface::MoveGroupInterface( planning_group_ ) );
+      const moveit::core::JointModelGroup *joint_model_group =
+          move_group_interface_->getRobotModel()->getJointModelGroup( planning_group_ );
+      joint_names_ =joint_model_group->getActiveJointModelNames();
+    }catch(...){
+      ROS_WARN_STREAM("[moveit_state_server] Planning group "<<planning_group_<<" seems to be unavailable. MoveitStateServer won't work.");
+    }
 
-  as_.registerGoalCallback([this] { goalCB(); });
-  as_.registerPreemptCallback([this] { preemptCB(); });
-  as_.start();
+
+    as_.registerGoalCallback([this] { goalCB(); });
+    as_.registerPreemptCallback([this] { preemptCB(); });
+    as_.start();
+  }
 }
 
 bool MoveitStateServer::storePoseService( moveit_state_server_msgs::StorePoseRequest &req,
