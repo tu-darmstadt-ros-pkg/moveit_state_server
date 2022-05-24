@@ -20,7 +20,7 @@ catkin_package(
         roscpp
         moveit_core
         moveit_ros_planning_interface
-
+        moveit_state_server_msgs
 )
 
 include_directories(${EIGEN_INCLUDE_DIRS} include)

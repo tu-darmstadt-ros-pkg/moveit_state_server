@@ -37,10 +37,7 @@ generate_messages(
 )
 
 catkin_package(
-        #  INCLUDE_DIRS include
-        #  LIBRARIES hector_multi_robot_msgs
         CATKIN_DEPENDS std_msgs message_runtime
-        #  DEPENDS system_lib
 )
 include_directories(
         # include
