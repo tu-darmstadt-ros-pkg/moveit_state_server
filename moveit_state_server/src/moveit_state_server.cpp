@@ -24,6 +24,8 @@ MoveitStateServer::MoveitStateServer() : as_(nh_, "/move_arm_to_stored_pose", fa
     switch_controllers_ = nh_.serviceClient<controller_manager_msgs::SwitchController>("/manipulator_arm_control/"
                                                                                        "controller_manager/"
                                                                                        "switch_controller");
+    move_ac_ = std::make_unique<actionlib::ActionClient<moveit_msgs::MoveGroupAction>>("move_group");
+    moveit_status_sub_ = nh_.subscribe("move_group/feedback", 10, &MoveitStateServer::moveitStatusCB, this);
     try
     {
       planning_group_ = "arm_group";
@@ -43,16 +45,12 @@ MoveitStateServer::MoveitStateServer() : as_(nh_, "/move_arm_to_stored_pose", fa
     as_.start();
   }
 }
-
-bool MoveitStateServer::storePoseService(moveit_state_server_msgs::StorePoseRequest &req,
-                                         moveit_state_server_msgs::StorePoseResponse &res)
+void MoveitStateServer::storeCurrentJointStates(std::vector<double> &joint_states)
 {
   planning_scene::PlanningScene planning_scene(moveit_robot_model_);
-  // ignore collision between these links, only padding collides and because of this camera cannot look upwards
-  planning_scene.getAllowedCollisionMatrixNonConst().setEntry("sensor_head_thermal_cam_frame", "chassis_link", true);
   moveit_msgs::GetPlanningScene srv;
   srv.request.components.components = srv.request.components.ROBOT_STATE;
-  joint_states_.resize(joint_names_.size());
+  joint_states.resize(joint_names_.size());
   if (this->get_planning_scene_.call(srv))
   {
     for (int i = 0; i < srv.response.scene.robot_state.joint_state.name.size(); i++)
@@ -61,13 +59,18 @@ bool MoveitStateServer::storePoseService(moveit_state_server_msgs::StorePoseRequ
       {
         if (srv.response.scene.robot_state.joint_state.name[i] == joint_names_[j])
         {
-          joint_states_[j] = srv.response.scene.robot_state.joint_state.position[i];
+          joint_states[j] = srv.response.scene.robot_state.joint_state.position[i];
         }
       }
       ROS_INFO_STREAM(srv.response.scene.robot_state.joint_state.name[i]
                       << " " << srv.response.scene.robot_state.joint_state.position[i]);
     }
   }
+}
+bool MoveitStateServer::storePoseService(moveit_state_server_msgs::StorePoseRequest &req,
+                                         moveit_state_server_msgs::StorePoseResponse &res)
+{
+  storeCurrentJointStates(joint_states_);
   res.success.data = true;
   return true;
 }
@@ -78,43 +81,36 @@ bool MoveitStateServer::retrievePoseService(moveit_state_server_msgs::RetrievePo
   res.names = joint_names_;
   return true;
 }
-void MoveitStateServer::goalCB()
+bool MoveitStateServer::switchController(bool to_tcp)
 {
   controller_manager_msgs::SwitchController switchController;
   std::vector<std::string> start_controllers = { "arm_tcp_controller" };
   std::vector<std::string> stop_controllers = { "manipulator_arm_traj_controller", "gripper_traj_controller" };
-  switchController.request.start_controllers = start_controllers;
-  switchController.request.stop_controllers = stop_controllers;
-  switchController.request.strictness = 1;
-  // get current state TODO combine with  function above
-  planning_scene::PlanningScene planning_scene(moveit_robot_model_);
-  std::vector<double> current_joint_states;
-  moveit_msgs::GetPlanningScene srv;
-  srv.request.components.components = srv.request.components.ROBOT_STATE;
-  current_joint_states.resize(joint_names_.size());
-  if (this->get_planning_scene_.call(srv))
+  if (to_tcp)
   {
-    for (int i = 0; i < srv.response.scene.robot_state.joint_state.name.size(); i++)
-    {
-      for (int j = 0; j < joint_names_.size(); j++)
-      {
-        if (srv.response.scene.robot_state.joint_state.name[i] == joint_names_[j])
-        {
-          current_joint_states[j] = srv.response.scene.robot_state.joint_state.position[i];
-        }
-      }
-      ROS_INFO_STREAM(srv.response.scene.robot_state.joint_state.name[i]
-                      << " " << srv.response.scene.robot_state.joint_state.position[i]);
-    }
+    switchController.request.start_controllers = start_controllers;
+    switchController.request.stop_controllers = stop_controllers;
   }
-  if (this->switch_controllers_.call(switchController))
+  else
   {
-    actionlib::ActionClient<moveit_msgs::MoveGroupAction> move_ac("move_group");
+    switchController.request.start_controllers = stop_controllers;
+    switchController.request.stop_controllers = start_controllers;
+  }
+  switchController.request.strictness = 1;
+  return this->switch_controllers_.call(switchController);
+}
+void MoveitStateServer::goalCB()
+{
+  std::vector<double> current_joint_states;
+  storeCurrentJointStates(current_joint_states);
+  if (switchController(false))
+  {
     moveit_msgs::MoveGroupGoal msg;
     msg.request.allowed_planning_time = 2;
     msg.request.group_name = "arm_group";
     msg.request.start_state.joint_state.name = joint_names_;
     msg.request.start_state.joint_state.position = current_joint_states;
+    msg.request.max_acceleration_scaling_factor = 0.5;
     moveit_msgs::Constraints goal_constraints;
     for (int i = 0; i < joint_names_.size(); i++)
     {
@@ -124,16 +120,23 @@ void MoveitStateServer::goalCB()
       goal_constraints.joint_constraints.push_back(jointConstraint);
     }
     msg.request.goal_constraints.push_back(goal_constraints);
-    move_ac.sendGoal(msg);
-
-    switchController.request.start_controllers = stop_controllers;
-    switchController.request.stop_controllers = start_controllers;
-    this->switch_controllers_.call(switchController);
+    started_arm_movement_ = true;
+    move_ac_->sendGoal(msg);
   }
 }
+
 void MoveitStateServer::preemptCB()
 {
   ROS_INFO_STREAM("[moveit_state_server] Preempted moveit_state_server.");
+}
+void MoveitStateServer::moveitStatusCB(const moveit_msgs::MoveGroupActionFeedback &msg)
+{
+  //wait until the arm movement finishes or is canceled
+  if (started_arm_movement_ && (msg.feedback.state != "PLANNING" && msg.feedback.state != "MONITOR"))
+  {
+    switchController(true);
+    started_arm_movement_ = false;
+  }
 }
 
 }  // namespace moveit_state_server
