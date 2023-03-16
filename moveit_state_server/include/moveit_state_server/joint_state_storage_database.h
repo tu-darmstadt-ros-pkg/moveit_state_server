@@ -1,0 +1,14 @@
+//
+// Created by aljoscha on 16.03.23.
+//
+
+#ifndef MOVEIT_STATE_SERVER_JOINT_STATE_STORAGE_DATABASE_H
+#define MOVEIT_STATE_SERVER_JOINT_STATE_STORAGE_DATABASE_H
+
+
+class joint_state_storage_database {
+
+};
+
+
+#endif //MOVEIT_STATE_SERVER_JOINT_STATE_STORAGE_DATABASE_H
