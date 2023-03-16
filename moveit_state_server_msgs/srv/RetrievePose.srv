@@ -1,4 +1,8 @@
-std_msgs/Empty store_current_pose
+int32 mode
+int32 STORE_JOINT_POSITIONS=0
+int32 STORE_END_EFFECTOR_POSE=1
+string name
 ---
 float64[] joint_states
 string[] names
+geometry_msgs/PoseStamped pose

@@ -1,4 +1,5 @@
 int32 mode
+string name
 int32 STORE_JOINT_POSITIONS=0
 int32 STORE_END_EFFECTOR_POSE=1
 ---

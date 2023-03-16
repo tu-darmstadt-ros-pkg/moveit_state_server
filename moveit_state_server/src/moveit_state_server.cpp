@@ -9,6 +9,11 @@ namespace moveit_state_server {
     MoveitStateServer::MoveitStateServer(ros::NodeHandle &pnh) : as_(nh_, "/move_arm_to_stored_pose",
                                                  [this](auto &&PH1) { goalCB(std::forward<decltype(PH1)>(PH1)); },
                                                  false) {
+            // TODO: -get params like arm_group,  from launch file
+            // TODO: - store maps of string and jointstates/poses
+            // TODO: change msg for services to include names
+            // TODO: include persistent joint_state_database access
+
             store_pose_service_name_ = "/store_arm_joint_states";
             store_pose_service = pnh.advertiseService(store_pose_service_name_, &MoveitStateServer::storePoseService,
                                                        this);
@@ -38,12 +43,22 @@ namespace moveit_state_server {
        // }
     }
 
-    void MoveitStateServer::storeCurrentJointStates(std::vector<double> &joint_states) {
+    void MoveitStateServer::storeCurrentJointStates(const std::string& name) {
+        std::vector<double> joint_states(joint_names_.size());
         auto current_state = moveit_cpp_ptr_->getCurrentState();
         current_state->copyJointGroupPositions(planning_group_, joint_states);
+        if(joint_states_.find(name)!=joint_states_.end()){
+            ROS_WARN_STREAM("The joint_state "<<name<<" already exists. The value will be overwritten.");
+            joint_states_[name] = joint_states;
+        }else{
+            joint_states_.insert(std::make_pair(name, joint_states));
+        }
     }
 
-    void MoveitStateServer::storeCurrentPose() {
+
+    void MoveitStateServer::storeCurrentPose(const std::string& name) {
+
+        //check if current pose already exists
         geometry_msgs::TransformStamped transformStamped;
         try {
             transformStamped = moveit_cpp_ptr_->getTFBuffer()->lookupTransform("world", end_effector_, ros::Time(0));
@@ -51,18 +66,25 @@ namespace moveit_state_server {
         catch (tf2::TransformException &ex) {
             ROS_WARN("%s", ex.what());
         }
-        convert(transformStamped.transform, pose_,position_reference_frame_);
+        geometry_msgs::PoseStamped pose;
+        convert(transformStamped.transform, pose,position_reference_frame_);
+        if(poses_.find(name)!=poses_.end()){
+            ROS_WARN_STREAM("The joint_state "<<name<<" already exists. The value will be overwritten.");
+            poses_[name] = pose;
+        }else{
+            poses_.insert(std::make_pair(name, pose));
+        }
     }
 
     bool MoveitStateServer::storePoseService(moveit_state_server_msgs::StorePoseRequest &req,
                                              moveit_state_server_msgs::StorePoseResponse &res) {
         if (req.mode == moveit_state_server_msgs::StorePoseRequest::STORE_JOINT_POSITIONS) {
-            storeCurrentJointStates(joint_states_);
+            storeCurrentJointStates(req.name);
             stored_joint_positions_ = true;
         }
 
         if (req.mode == moveit_state_server_msgs::StorePoseRequest::STORE_END_EFFECTOR_POSE) {
-            storeCurrentPose();
+            storeCurrentPose(req.name);
             stored_end_effector_position_ = true;
         }
 
@@ -72,7 +94,7 @@ namespace moveit_state_server {
 
     bool MoveitStateServer::retrievePoseService(moveit_state_server_msgs::RetrievePoseRequest &req,
                                                 moveit_state_server_msgs::RetrievePoseResponse &res) {
-        res.joint_states = joint_states_;
+        res.joint_states = joint_states_[""]; // TODO
         res.names = joint_names_;
         return true;
     }
@@ -91,28 +113,28 @@ namespace moveit_state_server {
         switchController.request.strictness = 1;
         return this->switch_controllers_.call(switchController);
     }
-
-    void MoveitStateServer::go_to_stored_joint_state(){
+    //check before if
+    void MoveitStateServer::go_to_stored_joint_state(const std::string& name){
         moveit::core::RobotStatePtr robot_state = moveit_cpp_ptr_->getCurrentState();
         planning_components_->setStartStateToCurrentState();
-        robot_state->setVariablePositions(joint_names_,joint_states_);
+        robot_state->setVariablePositions(joint_names_,joint_states_[name]);
         planning_components_->setGoal(*robot_state);
         planning_components_->plan();
         planning_components_->execute();
+
     }
 
-    void MoveitStateServer::go_to_stored_eef_position(){
+    void MoveitStateServer::go_to_stored_eef_position(const std::string& name){
         planning_components_->setStartStateToCurrentState();
-        geometry_msgs::PoseStamped target_pose1;
-        planning_components_->setGoal(pose_, end_effector_);
+        planning_components_->setGoal(poses_[name], end_effector_);
         planning_components_->plan();
         planning_components_->execute();
     }
 
     void MoveitStateServer::goalCB(const moveit_state_server_msgs::GoToStoredStateGoalConstPtr &goal) {
-        //verify that a pose has been previously stored
+        //verify that the named pose has been previously stored
         if (goal->mode == moveit_state_server_msgs::GoToStoredStateGoal::GO_TO_STORED_JOINT_POSITIONS and
-            !stored_joint_positions_) {
+            joint_states_.find(goal->name)==joint_states_.end()) {
             ROS_WARN_STREAM(
                     "[moveit_state_server] Before moving the arm to stored joint states, joint positions must be stored by calling the service "
                             << store_pose_service_name_);
@@ -120,7 +142,7 @@ namespace moveit_state_server {
             return;
         }
         if (goal->mode == moveit_state_server_msgs::GoToStoredStateGoal::GO_TO_STORED_END_EFFECTOR_POSE and
-            !stored_end_effector_position_) {
+                poses_.find(goal->name)==poses_.end()) {
             ROS_WARN_STREAM(
                     "[moveit_state_server] Before moving the arm to stored a stored eef pose, the pose must be stored by calling the service "
                             << store_pose_service_name_);
@@ -131,9 +153,9 @@ namespace moveit_state_server {
         // switch arm controller and move arm depending on selected options
         if (switchController(false)) {
             if(goal->mode == moveit_state_server_msgs::GoToStoredStateGoal::GO_TO_STORED_JOINT_POSITIONS){
-                go_to_stored_joint_state();
+                go_to_stored_joint_state(goal->name);
             }else{
-                go_to_stored_eef_position();
+                go_to_stored_eef_position(goal->name);
             }
             switchController(true);
             as_.setSucceeded();
@@ -141,7 +163,9 @@ namespace moveit_state_server {
     }
 
     void MoveitStateServer::preemptCB() {
-        ROS_INFO_STREAM("[moveit_state_server] Preempted moveit_state_server.");
+        ROS_WARN("[moveit_state_server] Preempted moveit_state_server.");
+        moveit_cpp_ptr_->getTrajectoryExecutionManager()->stopExecution();
+        ROS_WARN("[moveit_state_server] Stopping trajectory execution...");
     }
 
 
@@ -151,8 +175,6 @@ int main(int argc, char **argv) {
     ros:: NodeHandle pnh_("~");
     std::vector<std::string> test;
     pnh_.getParam("planning_pipelines/pipeline_names", test);
-    //ros::param::get("~planning_pipelines/pipeline_names", test);
-    bool exist =pnh_.hasParam("moveit_controller_manager");
     moveit_state_server::MoveitStateServer stateServer(pnh_);
 
 

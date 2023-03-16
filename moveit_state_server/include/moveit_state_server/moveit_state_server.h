@@ -26,8 +26,7 @@ inline
   pose.pose.position.y = trans.translation.y;
   pose.pose.position.z = trans.translation.z;
 }
-    constexpr char LOGNAME[] = "moveit_cpp";
-    constexpr char PLANNING_PLUGIN_PARAM[] = "planning_plugin";
+
 class MoveitStateServer
 {
 public:
@@ -41,10 +40,12 @@ private:
   void goalCB(const moveit_state_server_msgs::GoToStoredStateGoalConstPtr &goal);
   void preemptCB();
   bool switchController(bool to_tcp);
-  void storeCurrentJointStates(std::vector<double> &joint_states);
-  void storeCurrentPose();
-    void go_to_stored_joint_state();
-    void go_to_stored_eef_position();
+  void storeCurrentJointStates(const std::string& name);
+  void storeCurrentPose(const std::string& name);
+    void go_to_stored_joint_state(const std::string& name);
+    void go_to_stored_eef_position(const std::string& name);
+    bool check_if_pose_exists(const std::string& name);
+    bool check_if_joint_states_exists(const std::string& name);
   ros::NodeHandle nh_;
   ros::NodeHandle pnh_;
   std::string planning_group_ = "arm_group";
@@ -57,13 +58,13 @@ private:
   std::shared_ptr<moveit_cpp::PlanningComponent> planning_components_;
   ros::ServiceClient get_planning_scene_;
   ros::ServiceClient switch_controllers_;
-  std::vector<double> joint_states_;
+  std::map<std::string, std::vector<double>> joint_states_;
   std::string end_effector_;
   std::string store_pose_service_name_;
   std::vector<std::string> joint_names_;
   bool stored_joint_positions_=false;
   bool stored_end_effector_position_=false;
-  geometry_msgs::PoseStamped pose_;
+    std::map<std::string,geometry_msgs::PoseStamped> poses_;
 private:
 };
 }
