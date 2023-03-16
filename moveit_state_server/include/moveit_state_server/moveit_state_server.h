@@ -28,7 +28,7 @@ namespace moveit_state_server {
     class MoveitStateServer {
     public:
 
-        MoveitStateServer(ros::NodeHandle &pnh);
+        explicit MoveitStateServer(ros::NodeHandle &pnh);
 
     private:
         bool storePoseService(moveit_state_server_msgs::StorePoseRequest &req,
@@ -51,9 +51,6 @@ namespace moveit_state_server {
 
         void go_to_stored_eef_position(const std::string &name);
 
-        bool check_if_pose_exists(const std::string &name);
-
-        bool check_if_joint_states_exists(const std::string &name);
 
         ros::NodeHandle nh_;
         ros::NodeHandle pnh_;
@@ -71,8 +68,6 @@ namespace moveit_state_server {
         std::string end_effector_;
         std::string store_pose_service_name_;
         std::vector<std::string> joint_names_;
-        bool stored_joint_positions_ = false;
-        bool stored_end_effector_position_ = false;
         std::map<std::string, geometry_msgs::PoseStamped> poses_;
     private:
     };
