@@ -6,73 +6,52 @@
 // controller_manager_msgs.srv import SwitchController, SwitchControllerRequest
 
 namespace moveit_state_server {
-    MoveitStateServer::MoveitStateServer() : as_(nh_, "/move_arm_to_stored_pose",
+    MoveitStateServer::MoveitStateServer(ros::NodeHandle &pnh) : as_(nh_, "/move_arm_to_stored_pose",
                                                  [this](auto &&PH1) { goalCB(std::forward<decltype(PH1)>(PH1)); },
                                                  false) {
-        pnh_ = ros::NodeHandle("~");
-        if (!ros::service::waitForService("/get_planning_scene", ros::Duration(10.0))) {
-            ROS_WARN_STREAM(
-                    "[moveit_state_server] Moveit is not available on the robot. MoveitStateServer won't work.");
-        } else {
-            robot_model_loader::RobotModelLoader robot_model_loader("robot_description", false);
-            moveit_robot_model_ = robot_model_loader.getModel();
             store_pose_service_name_ = "/store_arm_joint_states";
-            store_pose_service = pnh_.advertiseService(store_pose_service_name_, &MoveitStateServer::storePoseService,
+            store_pose_service = pnh.advertiseService(store_pose_service_name_, &MoveitStateServer::storePoseService,
                                                        this);
             retrieve_pose_server =
                     pnh_.advertiseService("/retrieve_arm_joint_states", &MoveitStateServer::retrievePoseService, this);
-            get_planning_scene_ = nh_.serviceClient<moveit_msgs::GetPlanningScene>("/get_planning_scene");
+            get_planning_scene_ = pnh.serviceClient<moveit_msgs::GetPlanningScene>("/get_planning_scene");
             switch_controllers_ = nh_.serviceClient<controller_manager_msgs::SwitchController>(
                     "/manipulator_arm_control/"
                     "controller_manager/"
                     "switch_controller");
-            move_ac_ = std::make_unique<actionlib::ActionClient<moveit_msgs::MoveGroupAction>>("move_group");
-            try {
-                planning_group_ = "arm_group";
-                moveit::core::RobotStatePtr kinematic_state(new moveit::core::RobotState(moveit_robot_model_));
-                kinematic_state->setToDefaultValues();
-                const moveit::core::JointModelGroup *joint_model_group = moveit_robot_model_->getJointModelGroup(
-                        planning_group_);
-                joint_names_ = joint_model_group->getActiveJointModelNames();
-                end_effector_ = joint_model_group->getLinkModelNames().back();
-                ROS_WARN_STREAM("###" << end_effector_);
-            }
-            catch (...) {
-                ROS_WARN_STREAM("[moveit_state_server] Planning group "
-                                        << planning_group_
-                                        << " seems to be unavailable. MoveitStateServer won't work.");
-            }
-            buffer_ = std::make_unique<tf2_ros::Buffer>();
-            listener_ = std::make_unique<tf2_ros::TransformListener>(*buffer_);
+
+            moveit_cpp_ptr_ = std::make_shared<moveit_cpp::MoveItCpp>(pnh);
+            moveit_cpp_ptr_->getPlanningSceneMonitorNonConst()->providePlanningSceneService();
+
+            planning_components_ = std::make_shared<moveit_cpp::PlanningComponent>(planning_group_, moveit_cpp_ptr_);
+            auto robot_model_ptr = moveit_cpp_ptr_->getRobotModel();
+            auto joint_model_group_ptr = robot_model_ptr->getJointModelGroup(planning_group_);
+            joint_names_ = joint_model_group_ptr->getActiveJointModelNames();
+            end_effector_ = joint_model_group_ptr->getLinkModelNames().back();
+            std::stringstream ss;
+            ss<<"available joints: ";
+            for(const auto& elm:joint_names_) ss<<elm<<", ";
+            ss<<"; end effector: "<<end_effector_;
+            ROS_INFO_STREAM(ss.str());
             as_.registerPreemptCallback([this] { preemptCB(); });
             as_.start();
-        }
+       // }
     }
 
     void MoveitStateServer::storeCurrentJointStates(std::vector<double> &joint_states) {
-        moveit_msgs::GetPlanningScene srv;
-        srv.request.components.components = srv.request.components.ROBOT_STATE;
-        joint_states.resize(joint_names_.size());
-        if (this->get_planning_scene_.call(srv)) {
-            for (int i = 0; i < srv.response.scene.robot_state.joint_state.name.size(); i++) {
-                for (int j = 0; j < joint_names_.size(); j++) {
-                    if (srv.response.scene.robot_state.joint_state.name[i] == joint_names_[j]) {
-                        joint_states[j] = srv.response.scene.robot_state.joint_state.position[i];
-                    }
-                }
-            }
-        }
+        auto current_state = moveit_cpp_ptr_->getCurrentState();
+        current_state->copyJointGroupPositions(planning_group_, joint_states);
     }
 
     void MoveitStateServer::storeCurrentPose() {
         geometry_msgs::TransformStamped transformStamped;
         try {
-            transformStamped = buffer_->lookupTransform("world", end_effector_, ros::Time(0));
+            transformStamped = moveit_cpp_ptr_->getTFBuffer()->lookupTransform("world", end_effector_, ros::Time(0));
         }
         catch (tf2::TransformException &ex) {
             ROS_WARN("%s", ex.what());
         }
-        convert(transformStamped.transform, pose_);
+        convert(transformStamped.transform, pose_,position_reference_frame_);
     }
 
     bool MoveitStateServer::storePoseService(moveit_state_server_msgs::StorePoseRequest &req,
@@ -113,6 +92,23 @@ namespace moveit_state_server {
         return this->switch_controllers_.call(switchController);
     }
 
+    void MoveitStateServer::go_to_stored_joint_state(){
+        moveit::core::RobotStatePtr robot_state = moveit_cpp_ptr_->getCurrentState();
+        planning_components_->setStartStateToCurrentState();
+        robot_state->setVariablePositions(joint_names_,joint_states_);
+        planning_components_->setGoal(*robot_state);
+        planning_components_->plan();
+        planning_components_->execute();
+    }
+
+    void MoveitStateServer::go_to_stored_eef_position(){
+        planning_components_->setStartStateToCurrentState();
+        geometry_msgs::PoseStamped target_pose1;
+        planning_components_->setGoal(pose_, end_effector_);
+        planning_components_->plan();
+        planning_components_->execute();
+    }
+
     void MoveitStateServer::goalCB(const moveit_state_server_msgs::GoToStoredStateGoalConstPtr &goal) {
         //verify that a pose has been previously stored
         if (goal->mode == moveit_state_server_msgs::GoToStoredStateGoal::GO_TO_STORED_JOINT_POSITIONS and
@@ -131,51 +127,13 @@ namespace moveit_state_server {
             as_.setAborted();
             return;
         }
-        std::vector<double> current_joint_states;
-        storeCurrentJointStates(current_joint_states);
+
+        // switch arm controller and move arm depending on selected options
         if (switchController(false)) {
-            moveit_msgs::MoveGroupGoal msg;
-            msg.planning_options.plan_only = false; // plan and move arrm
-            msg.planning_options.look_around = false;
-            msg.planning_options.replan = false;
-            msg.planning_options.planning_scene_diff.is_diff = true;
-            msg.planning_options.planning_scene_diff.robot_state.is_diff = true;
-            msg.request.start_state.is_diff = true;
-            msg.request.allowed_planning_time = 2;
-            msg.request.num_planning_attempts = 3;
-            msg.request.group_name = "arm_group";
-            msg.request.start_state.joint_state.name = joint_names_;
-            msg.request.start_state.joint_state.position = current_joint_states;
-            msg.request.max_acceleration_scaling_factor = 0.5;
-            if (goal->mode == moveit_state_server_msgs::GoToStoredStateGoal::GO_TO_STORED_JOINT_POSITIONS) {
-                moveit_msgs::Constraints goal_constraints;
-                for (int i = 0; i < joint_names_.size(); i++) {
-                    moveit_msgs::JointConstraint jointConstraint;
-                    jointConstraint.joint_name = joint_names_[i];
-                    jointConstraint.position = joint_states_[i];
-                    jointConstraint.weight = 1.0;
-                    goal_constraints.joint_constraints.push_back(jointConstraint);
-                }
-                msg.request.goal_constraints.push_back(goal_constraints);
-            } else if (goal->mode == moveit_state_server_msgs::GoToStoredStateGoal::GO_TO_STORED_END_EFFECTOR_POSE) {
-                geometry_msgs::PoseStamped pose;
-                pose.pose = pose_;
-                pose.header.frame_id = "world";
-                std::vector<double> tolerance_pose(3, 0.01);
-                std::vector<double> tolerance_angle(3, 0.01);
-                moveit_msgs::Constraints pose_goal =
-                        kinematic_constraints::constructGoalConstraints(end_effector_, pose, tolerance_pose,
-                                                                        tolerance_angle);
-                msg.request.goal_constraints.push_back(pose_goal);
-            }
-            if (as_.isPreemptRequested() || !ros::ok()) {
-                ROS_WARN_STREAM("Preempted moveit_state_server action request");
-                as_.setPreempted();
-            }
-            move_ac_->sendGoal(msg);
-            while (true) {
-                auto msg = ros::topic::waitForMessage<moveit_msgs::MoveGroupActionFeedback>("move_group/feedback");
-                if (msg->feedback.state != "PLANNING" && msg->feedback.state != "MONITOR")break;
+            if(goal->mode == moveit_state_server_msgs::GoToStoredStateGoal::GO_TO_STORED_JOINT_POSITIONS){
+                go_to_stored_joint_state();
+            }else{
+                go_to_stored_eef_position();
             }
             switchController(true);
             as_.setSucceeded();
@@ -189,9 +147,14 @@ namespace moveit_state_server {
 
 }  // namespace moveit_state_server
 int main(int argc, char **argv) {
-    ros::init(argc, argv, ROS_PACKAGE_NAME);
+    ros::init(argc, argv, "moveit_state_server");
+    ros:: NodeHandle pnh_("~");
+    std::vector<std::string> test;
+    pnh_.getParam("planning_pipelines/pipeline_names", test);
+    //ros::param::get("~planning_pipelines/pipeline_names", test);
+    bool exist =pnh_.hasParam("moveit_controller_manager");
+    moveit_state_server::MoveitStateServer stateServer(pnh_);
 
-    moveit_state_server::MoveitStateServer stateServer;
 
     ros::spin();
 

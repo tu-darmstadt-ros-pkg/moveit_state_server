@@ -1,4 +1,23 @@
 <?xml version="1.0"?>
 <launch>
+    <!-- Specify the config files to use -->
+    <arg name="robot" default="asterix"/>
+
+    <!-- specify the config files to use -->
+    <rosparam ns="moveit_state_server" command="load" file="$(find moveit_state_server)/config/moveit_cpp.yaml" />
+
+    <!-- planning pipeline -->
+    <include ns="/moveit_state_server/ompl" file="$(eval find(arg('robot') + '_moveit_config') + '/launch/ompl_planning_pipeline.launch.xml')"/>
+
+    <!-- trajectory execution  -->
+    <include ns="moveit_state_server" file="$(eval find(arg('robot') + '_moveit_config') + '/launch/trajectory_execution.launch.xml')">
+      <!--<arg name="moveit_controller_manager" value="fake"/>-->
+    </include>
+
+    <!-- load the URDF, SRDF and other .yaml configuration files on the param server -->
+    <include file="$(eval find(arg('robot') + '_moveit_config') + '/launch/planning_context.launch')">
+      <arg name="load_robot_description" value="true"/>
+    </include>
+ <!--  <remap from="/move_group/moveit_controller_manager" to="/moveit_controller_manager"/>-->
   <node name="moveit_state_server" pkg="moveit_state_server" type="moveit_state_server" respawn="false" output="screen"/>
 </launch>

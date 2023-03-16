@@ -11,22 +11,28 @@
 #include <moveit_state_server_msgs/StorePose.h>
 #include <ros/ros.h>
 #include <tf2_ros/transform_listener.h>
+#include <moveit/moveit_cpp/moveit_cpp.h>
+#include <moveit/moveit_cpp/planning_component.h>
+
 
 namespace moveit_state_server
 {
 inline
-    void convert(const geometry_msgs::Transform& trans, geometry_msgs::Pose& pose)
+    void convert(const geometry_msgs::Transform& trans, geometry_msgs::PoseStamped& pose, const std::string& frame)
 {
-  pose.orientation = trans.rotation;
-  pose.position.x = trans.translation.x;
-  pose.position.y = trans.translation.y;
-  pose.position.z = trans.translation.z;
+  pose.header.frame_id = frame;
+  pose.pose.orientation = trans.rotation;
+  pose.pose.position.x = trans.translation.x;
+  pose.pose.position.y = trans.translation.y;
+  pose.pose.position.z = trans.translation.z;
 }
-
+    constexpr char LOGNAME[] = "moveit_cpp";
+    constexpr char PLANNING_PLUGIN_PARAM[] = "planning_plugin";
 class MoveitStateServer
 {
 public:
-  MoveitStateServer();
+
+  MoveitStateServer(ros::NodeHandle &pnh);
 private:
   bool storePoseService( moveit_state_server_msgs::StorePoseRequest &req,
                          moveit_state_server_msgs::StorePoseResponse &res );
@@ -37,16 +43,18 @@ private:
   bool switchController(bool to_tcp);
   void storeCurrentJointStates(std::vector<double> &joint_states);
   void storeCurrentPose();
+    void go_to_stored_joint_state();
+    void go_to_stored_eef_position();
   ros::NodeHandle nh_;
   ros::NodeHandle pnh_;
   std::string planning_group_ = "arm_group";
+  std::string position_reference_frame_ = "world";
   ros::ServiceServer store_pose_service;
   ros::ServiceServer retrieve_pose_server;
   robot_model::RobotModelPtr moveit_robot_model_;
   actionlib::SimpleActionServer<moveit_state_server_msgs::GoToStoredStateAction> as_;
-  std::unique_ptr<actionlib::ActionClient<moveit_msgs::MoveGroupAction>> move_ac_;
-  std::unique_ptr<tf2_ros::Buffer>buffer_;
-  std::unique_ptr<tf2_ros::TransformListener>listener_;
+  std::shared_ptr<moveit_cpp::MoveItCpp> moveit_cpp_ptr_;
+  std::shared_ptr<moveit_cpp::PlanningComponent> planning_components_;
   ros::ServiceClient get_planning_scene_;
   ros::ServiceClient switch_controllers_;
   std::vector<double> joint_states_;
@@ -55,7 +63,7 @@ private:
   std::vector<std::string> joint_names_;
   bool stored_joint_positions_=false;
   bool stored_end_effector_position_=false;
-  geometry_msgs::Pose pose_;
+  geometry_msgs::PoseStamped pose_;
 private:
 };
 }
