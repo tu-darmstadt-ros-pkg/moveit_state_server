@@ -34,7 +34,7 @@ include_directories(
 
 
 add_executable(moveit_state_server
-        src/moveit_state_server.cpp)
+        src/moveit_state_server.cpp include/moveit_state_server/joint_state_storage_database.cpp include/moveit_state_server/joint_state_storage_database.h)
 
 target_link_libraries(moveit_state_server
         ${catkin_LIBRARIES}
