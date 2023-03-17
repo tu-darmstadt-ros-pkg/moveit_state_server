@@ -5,11 +5,12 @@
 // controller_manager_msgs.srv import SwitchController, SwitchControllerRequest
 
 namespace moveit_state_server {
-    MoveitStateServer::MoveitStateServer(ros::NodeHandle &pnh) : as_(nh_, "/move_arm_to_stored_pose",
+    MoveitStateServer::MoveitStateServer(ros::NodeHandle &pnh) : as_(nh_, std::string(ROS_PACKAGE_NAME) +
+                                                                          "/move_arm_to_stored_pose",
                                                                      [this](auto &&PH1) {
                                                                          goalCB(std::forward<decltype(PH1)>(PH1));
-                                                                     },
-                                                                     false) {
+                                                                     }, false) {
+
         pnh.param("planning_group", planning_group_, std::string("arm_group"));
         pnh.param("pose_reference_frame", position_reference_frame_, std::string("world"));
         pnh.param("robot_name", robot_name_, std::string(""));
@@ -17,12 +18,13 @@ namespace moveit_state_server {
         int port;
         pnh.param("hostname", hostname, std::string("localhost"));
         pnh.param("port", port, 33829);
-        store_pose_service_name_ = "/store_arm_joint_states";
+        store_pose_service_name_ = "/store_arm_pose";
+        retrieve_pose_service_name_ = "/retrieve_arm_pose";
+
         store_pose_service = pnh.advertiseService(store_pose_service_name_, &MoveitStateServer::storePoseService,
                                                   this);
         retrieve_pose_server =
-                pnh_.advertiseService("/retrieve_arm_joint_states", &MoveitStateServer::retrievePoseService, this);
-        get_planning_scene_ = pnh.serviceClient<moveit_msgs::GetPlanningScene>("/get_planning_scene");
+                pnh.advertiseService(retrieve_pose_service_name_, &MoveitStateServer::retrievePoseService, this);
         switch_controllers_ = nh_.serviceClient<controller_manager_msgs::SwitchController>(
                 "/manipulator_arm_control/"
                 "controller_manager/"
@@ -94,8 +96,19 @@ namespace moveit_state_server {
 
     bool MoveitStateServer::retrievePoseService(moveit_state_server_msgs::RetrievePoseRequest &req,
                                                 moveit_state_server_msgs::RetrievePoseResponse &res) {
-        //res.joint_states = joint_states_[""]; // TODO
-        res.names = joint_names_;
+        if (req.mode == moveit_state_server_msgs::RetrievePoseRequest::RETRIEVE_END_EFFECTOR_POSE) {
+            geometry_msgs::PoseStamped pose;
+            auto it = poses_.find(req.name);
+            if (it != poses_.end()) res.pose = it->second;
+            else
+                ROS_WARN_STREAM("No end_effector pose " << req.name << " stored.");
+        } else {
+            sensor_msgs::JointState joint_state;
+            bool found = joint_state_storage_->getStoredJointState(req.name, joint_state, false);
+            if (found)res.joint_state = joint_state;
+            else
+                ROS_WARN_STREAM("No joint_state " << req.name << " stored.");
+        }
         return true;
     }
 

@@ -1,8 +1,7 @@
 int32 mode
-int32 STORE_JOINT_POSITIONS=0
-int32 STORE_END_EFFECTOR_POSE=1
+int32 RETRIEVE_JOINT_POSITIONS=0
+int32 RETRIEVE_END_EFFECTOR_POSE=1
 string name
 ---
-float64[] joint_states
-string[] names
+sensor_msgs/JointState joint_state
 geometry_msgs/PoseStamped pose

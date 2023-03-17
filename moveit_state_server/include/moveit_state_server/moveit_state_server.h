@@ -56,7 +56,8 @@ namespace moveit_state_server {
         ros::NodeHandle pnh_;
         std::string planning_group_ = "arm_group";
         std::string position_reference_frame_ = "world";
-        std::string robot_name_ = "";
+        std::string robot_name_;
+        std::string retrieve_pose_service_name_;
         ros::ServiceServer store_pose_service;
         ros::ServiceServer retrieve_pose_server;
         robot_model::RobotModelPtr moveit_robot_model_;

@@ -6,6 +6,7 @@ set(CMAKE_CXX_STANDARD 14)
 find_package(catkin REQUIRED COMPONENTS
         std_msgs
         geometry_msgs
+        sensor_msgs
         message_generation
         actionlib_msgs
         )
@@ -33,6 +34,7 @@ generate_messages(
         DEPENDENCIES
         std_msgs
         geometry_msgs
+        sensor_msgs
         actionlib_msgs
 )
 

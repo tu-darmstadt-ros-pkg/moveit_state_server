@@ -13,6 +13,7 @@ namespace joint_storage {
     class JointStateStorage {
     public:
         explicit JointStateStorage(std::string robot_name) : robot_name_(std::move(robot_name)) {};
+        virtual ~JointStateStorage() = default;
         using JointStatePair = std::pair<std::string, sensor_msgs::JointState>;
 
         virtual void getAllStoredNames(std::vector<std::string> &names, bool reload) = 0;
