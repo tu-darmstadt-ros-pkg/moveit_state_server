@@ -10,7 +10,7 @@ namespace moveit_state_server {
                                                                      [this](auto &&PH1) {
                                                                          goalCB(std::forward<decltype(PH1)>(PH1));
                                                                      }, false) {
-
+        // SET PARAMETERS FROM LAUNCH FILE
         pnh.param("planning_group", planning_group_, std::string("arm_group"));
         pnh.param("pose_reference_frame", position_reference_frame_, std::string("world"));
         pnh.param("robot_name", robot_name_, std::string(""));
@@ -18,9 +18,10 @@ namespace moveit_state_server {
         int port;
         pnh.param("hostname", hostname, std::string("localhost"));
         pnh.param("port", port, 33829);
+
+        // SETUP SERVICES FOR STORING AND RETRIEVING STATES AND FOR SWITCHING THE ARM CONTROLLER
         store_pose_service_name_ = "/store_arm_pose";
         retrieve_pose_service_name_ = "/retrieve_arm_pose";
-
         store_pose_service = pnh.advertiseService(store_pose_service_name_, &MoveitStateServer::storePoseService,
                                                   this);
         retrieve_pose_server =
@@ -30,22 +31,27 @@ namespace moveit_state_server {
                 "controller_manager/"
                 "switch_controller");
 
+        // SETUP MOVEIT_CPP
         moveit_cpp_ptr_ = std::make_shared<moveit_cpp::MoveItCpp>(pnh);
         moveit_cpp_ptr_->getPlanningSceneMonitorNonConst()->providePlanningSceneService();
-
         planning_components_ = std::make_shared<moveit_cpp::PlanningComponent>(planning_group_, moveit_cpp_ptr_);
         auto robot_model_ptr = moveit_cpp_ptr_->getRobotModel();
         auto joint_model_group_ptr = robot_model_ptr->getJointModelGroup(planning_group_);
         joint_names_ = joint_model_group_ptr->getActiveJointModelNames();
         end_effector_ = joint_model_group_ptr->getLinkModelNames().back();
+
+        // PRINT JOINT NAMES AND THE END EFFECTOR OF THE SELECTED PLANNING GROUP
         std::stringstream ss;
         ss << "available joints: ";
         for (const auto &elm: joint_names_) ss << elm << ", ";
         ss << "; end effector: " << end_effector_;
         ROS_INFO_STREAM(ss.str());
+
+        // START ACTION SIMPLE ACTION CLIENT
         as_.registerPreemptCallback([this] { preemptCB(); });
         as_.start();
-        // setup joint_state storage
+
+        // SETUP PERSISTENT JOINT STATE STORAGE
         joint_state_storage_ = std::make_unique<joint_storage::JointStateStorageDatabase>(hostname, port, robot_name_);
         joint_state_storage_->loadAllJointStates();
     }
@@ -61,8 +67,6 @@ namespace moveit_state_server {
 
 
     void MoveitStateServer::storeCurrentPose(const std::string &name) {
-
-        //check if current pose already exists
         geometry_msgs::TransformStamped transformStamped;
         try {
             transformStamped = moveit_cpp_ptr_->getTFBuffer()->lookupTransform("world", end_effector_, ros::Time(0));
@@ -127,8 +131,8 @@ namespace moveit_state_server {
         return this->switch_controllers_.call(switchController);
     }
 
-    //check before if
-    void MoveitStateServer::go_to_stored_joint_state(const std::string &name) {
+
+    void MoveitStateServer::goToStoredJointState(const std::string &name) {
         moveit::core::RobotStatePtr robot_state = moveit_cpp_ptr_->getCurrentState();
         planning_components_->setStartStateToCurrentState();
         sensor_msgs::JointState joint_state;
@@ -144,7 +148,7 @@ namespace moveit_state_server {
 
     }
 
-    void MoveitStateServer::go_to_stored_eef_position(const std::string &name) {
+    void MoveitStateServer::goToStoredEndeffectorPosition(const std::string &name) {
         planning_components_->setStartStateToCurrentState();
         planning_components_->setGoal(poses_[name], end_effector_);
         planning_components_->plan();
@@ -173,9 +177,9 @@ namespace moveit_state_server {
         // switch arm controller and move arm depending on selected options
         if (switchController(false)) {
             if (goal->mode == moveit_state_server_msgs::GoToStoredStateGoal::GO_TO_STORED_JOINT_POSITIONS) {
-                go_to_stored_joint_state(goal->name);
+                goToStoredJointState(goal->name);
             } else {
-                go_to_stored_eef_position(goal->name);
+                goToStoredEndeffectorPosition(goal->name);
             }
             switchController(true);
             as_.setSucceeded();

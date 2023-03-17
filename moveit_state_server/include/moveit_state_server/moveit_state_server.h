@@ -1,3 +1,6 @@
+//
+// Created by aljoscha on 08.05.22.
+//
 #ifndef MOVEIT_STATE_SERVER_H
 #define MOVEIT_STATE_SERVER_H
 
@@ -47,9 +50,9 @@ namespace moveit_state_server {
 
         void storeCurrentPose(const std::string &name);
 
-        void go_to_stored_joint_state(const std::string &name);
+        void goToStoredJointState(const std::string &name);
 
-        void go_to_stored_eef_position(const std::string &name);
+        void goToStoredEndeffectorPosition(const std::string &name);
 
 
         ros::NodeHandle nh_;
