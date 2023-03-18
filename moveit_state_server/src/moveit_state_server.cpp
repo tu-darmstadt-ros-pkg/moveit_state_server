@@ -2,6 +2,8 @@
 #include <moveit_state_server/moveit_state_server.h>
 #include <controller_manager_msgs/SwitchController.h>
 #include <moveit/kinematic_constraints/utils.h>
+#include <moveit_state_server/joint_state_storage_database.h>
+#include <moveit_state_server/joint_state_file_storage.h>
 // controller_manager_msgs.srv import SwitchController, SwitchControllerRequest
 
 namespace moveit_state_server {
@@ -18,7 +20,9 @@ namespace moveit_state_server {
         int port;
         pnh.param("hostname", hostname, std::string("localhost"));
         pnh.param("port", port, 33829);
-
+        std::string folder_path;
+        pnh.param("folder_path", folder_path,std::string(""));
+        pnh.param("use_database",use_database_for_persistent_storage_,true);
         // SETUP SERVICES FOR STORING AND RETRIEVING STATES AND FOR SWITCHING THE ARM CONTROLLER
         store_pose_service_name_ = "/store_arm_pose";
         retrieve_pose_service_name_ = "/retrieve_arm_pose";
@@ -52,8 +56,15 @@ namespace moveit_state_server {
         as_.start();
 
         // SETUP PERSISTENT JOINT STATE STORAGE
-        joint_state_storage_ = std::make_unique<joint_storage::JointStateStorageDatabase>(hostname, port, robot_name_);
-        joint_state_storage_->loadAllJointStates();
+        if(use_database_for_persistent_storage_){
+            joint_state_storage_ = std::make_unique<joint_storage::JointStateStorageDatabase>(hostname, port, robot_name_);
+            joint_state_storage_->loadAllJointStates();
+        }else{
+            ROS_WARN("initializing file storage.");
+            joint_state_storage_ = std::make_unique<joint_storage::JointStateFileStorage>(folder_path, robot_name_);
+            joint_state_storage_->loadAllJointStates();
+        }
+
     }
 
     void MoveitStateServer::storeCurrentJointStates(const std::string &name) {
@@ -62,7 +73,7 @@ namespace moveit_state_server {
         auto current_state = moveit_cpp_ptr_->getCurrentState();
         current_state->copyJointGroupPositions(planning_group_, joint_state.position);
         joint_state.name = joint_names_;
-        joint_state_storage_->storeJointState(joint_state, name);
+        joint_state_storage_->addJointState(joint_state, name);
     }
 
 

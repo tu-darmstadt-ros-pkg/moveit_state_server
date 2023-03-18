@@ -8,13 +8,7 @@
 
 
 namespace joint_storage {
-    void joint_storage::JointStateStorageDatabase::getAllStoredNames(std::vector<std::string> &names, bool reload) {
-        if (reload)loadAllJointStates();
-        names.clear();
-        for (const auto &pair: joint_states_) {
-            names.push_back(pair.first);
-        }
-    }
+
 
     bool joint_storage::JointStateStorageDatabase::getStoredJointState(const std::string &name,
                                                                        sensor_msgs::JointState &jointState,
@@ -33,21 +27,15 @@ namespace joint_storage {
     }
 
     bool joint_storage::JointStateStorageDatabase::storeJointState(sensor_msgs::JointState joint_state,
-                                                                   const std::string &name) {
+                                                                   const std::string &name, bool already_exists) {
         moveit_msgs::RobotState robotState;
         robotState.joint_state = joint_state;
-        // add joint state to map
-        if (joint_states_.find(name) != joint_states_.end()) {
-            ROS_WARN_STREAM("The joint_state " << name << " already exists. The value will be overwritten.");
-            joint_states_[name] = joint_state;
-            robot_state_storage_->removeRobotState(name, robot_name_);
-        } else {
-            joint_states_.insert(std::make_pair(name, joint_state));
-        }
+
         bool success = false;
         // store if db connected
         if (robot_state_storage_) {
             try {
+                if (already_exists) robot_state_storage_->removeRobotState(name, robot_name_);
                 robot_state_storage_->addRobotState(robotState, name, robot_name_);
                 success = true;
             }
@@ -55,7 +43,7 @@ namespace joint_storage {
                 ROS_ERROR("Cannot save robot state on the database: %s", ex.what());
             }
         } else {
-            ROS_WARN("Warning: Not connected to a database. The state will be created but not stored");
+            ROS_WARN("Warning: Not connected to a database. The state won't be stored persistently.");
         }
         return success;
     }

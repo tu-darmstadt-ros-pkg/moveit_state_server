@@ -10,10 +10,14 @@ included in moveit_warehouse. Configured correctly, it stores the joint states i
 planning rviz plugin.
 
 ### Launching
-If you want to make use of persistently storing joint states in the database, the mongo database must be running. This can
+
+If you want to make use of persistently storing joint states in the database, the mongo database must be running. This
+can
 be done by selecting the `db` param while launching moveit
-, see [moveit documentation: Persistent States](https://ros-planning.github.io/moveit_tutorials/doc/persistent_scenes_and_states/persistent_scenes_and_states.html) .
-Alternatively, the  database can be launched with the database launch in the moveit_state_server package.
+,
+see [moveit documentation: Persistent States](https://ros-planning.github.io/moveit_tutorials/doc/persistent_scenes_and_states/persistent_scenes_and_states.html)
+.
+Alternatively, the database can be launched with the database launch file in the moveit_state_server package.
 If using the moveit launch file, make sure to select the mongo database plugin and selecting the
 same port and hostname as in the launch file of the moveit state server.
 
@@ -27,13 +31,14 @@ Launching the moveit_state_server can be done with
 roslaunch moveit_state_server moveit_state_server.launch
 ```
 
-
 ### Storing joint states / end-effector poses
 
 The service `/store_arm_poses` stores either the
 current joint angles or the end-effector pose depending on the selected mode. Additionally, the user must provide a name
 for the stored state.
+
 #### Service Message Description: Store state
+
 ```
 int32 mode
 string name
@@ -51,6 +56,7 @@ coordinate system will be different. Hence, only the joint states are stored per
 The service `/retrieve_arm_poses` can be used to retrieve a stored joint_state or end-effector pose.
 
 #### Service Message Description: Retrieve state
+
 ```
 int32 mode
 int32 RETRIEVE_JOINT_POSITIONS=0
@@ -69,6 +75,7 @@ state.
 The goal message defines the type and name of the goal
 
 #### Action Message Description: Move arm
+
 ```
 int32 mode
 string name
@@ -80,15 +87,12 @@ int32 success
 int32 state
 ```
 
-
-
 ### Requirements
 
-This ROS package requires the following software to be installed:
+This ROS package requires `moveit`
+,[see here](https://ros-planning.github.io/moveit_tutorials/doc/getting_started/getting_started.html), to be installed
 
-    moveit 
-    mongo ?
-    moveit_warehouse ?
+If you want to store states persistently, `ros-noetic-warehouse-ros-mongo` must be installed.
 
 ### Contributing
 

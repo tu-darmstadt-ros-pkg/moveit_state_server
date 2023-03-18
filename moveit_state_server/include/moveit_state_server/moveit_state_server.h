@@ -16,7 +16,7 @@
 #include <tf2_ros/transform_listener.h>
 #include <moveit/moveit_cpp/moveit_cpp.h>
 #include <moveit/moveit_cpp/planning_component.h>
-#include <moveit_state_server/joint_state_storage_database.h>
+#include <moveit_state_server/joint_state_storage.h>
 
 namespace moveit_state_server {
     inline
@@ -74,6 +74,7 @@ namespace moveit_state_server {
         std::vector<std::string> joint_names_;
         std::map<std::string, geometry_msgs::PoseStamped> poses_;
         std::unique_ptr<joint_storage::JointStateStorage> joint_state_storage_;
+        bool use_database_for_persistent_storage_ = true;
     private:
     };
 }

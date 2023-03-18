@@ -20,12 +20,11 @@ namespace joint_storage {
 //            robot_state_storage_->reset();
 //        }
 
-        void getAllStoredNames(std::vector<std::string> &names, bool reload) override;
 
         bool
         getStoredJointState(const std::string &name, sensor_msgs::JointState &jointState, bool reload) override;
 
-        bool storeJointState(sensor_msgs::JointState joint_state, const std::string &name) override;
+        bool storeJointState(sensor_msgs::JointState joint_state, const std::string &name, bool already_exists) override;
 
         bool loadAllJointStates() override;
 
