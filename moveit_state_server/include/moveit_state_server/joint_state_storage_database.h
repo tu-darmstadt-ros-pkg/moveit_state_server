@@ -24,7 +24,8 @@ namespace joint_storage {
         bool
         getStoredJointState(const std::string &name, sensor_msgs::JointState &jointState, bool reload) override;
 
-        bool storeJointState(sensor_msgs::JointState joint_state, const std::string &name, bool already_exists) override;
+        bool
+        storeJointState(sensor_msgs::JointState joint_state, const std::string &name, bool already_exists) override;
 
         bool loadAllJointStates() override;
 

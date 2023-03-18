@@ -21,8 +21,8 @@ namespace moveit_state_server {
         pnh.param("hostname", hostname, std::string("localhost"));
         pnh.param("port", port, 33829);
         std::string folder_path;
-        pnh.param("folder_path", folder_path,std::string(""));
-        pnh.param("use_database",use_database_for_persistent_storage_,true);
+        pnh.param("folder_path", folder_path, std::string(""));
+        pnh.param("use_database", use_database_for_persistent_storage_, true);
         // SETUP SERVICES FOR STORING AND RETRIEVING STATES AND FOR SWITCHING THE ARM CONTROLLER
         store_pose_service_name_ = "/store_arm_pose";
         retrieve_pose_service_name_ = "/retrieve_arm_pose";
@@ -56,10 +56,11 @@ namespace moveit_state_server {
         as_.start();
 
         // SETUP PERSISTENT JOINT STATE STORAGE
-        if(use_database_for_persistent_storage_){
-            joint_state_storage_ = std::make_unique<joint_storage::JointStateStorageDatabase>(hostname, port, robot_name_);
+        if (use_database_for_persistent_storage_) {
+            joint_state_storage_ = std::make_unique<joint_storage::JointStateStorageDatabase>(hostname, port,
+                                                                                              robot_name_);
             joint_state_storage_->loadAllJointStates();
-        }else{
+        } else {
             ROS_WARN("initializing file storage.");
             joint_state_storage_ = std::make_unique<joint_storage::JointStateFileStorage>(folder_path, robot_name_);
             joint_state_storage_->loadAllJointStates();

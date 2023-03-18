@@ -47,9 +47,9 @@ namespace joint_storage {
                 std::cout << itr->path().filename() << std::endl;  // Replace with your desired processing of file path
 
                 robot_joint_state_name.erase(robot_joint_state_name.begin(),
-                                                                robot_joint_state_name.begin() + robot_name_.length() +
-                                                                1);
-                loadJointState(itr->path().string(),robot_joint_state_name);
+                                             robot_joint_state_name.begin() + robot_name_.length() +
+                                             1);
+                loadJointState(itr->path().string(), robot_joint_state_name);
             }
         }
         return true;

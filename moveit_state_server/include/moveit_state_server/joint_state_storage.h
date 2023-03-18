@@ -13,10 +13,12 @@ namespace joint_storage {
     class JointStateStorage {
     public:
         explicit JointStateStorage(std::string robot_name) : robot_name_(std::move(robot_name)) {};
+
         virtual ~JointStateStorage() = default;
+
         using JointStatePair = std::pair<std::string, sensor_msgs::JointState>;
 
-        virtual void getAllStoredNames(std::vector<std::string> &names, bool reload){
+        virtual void getAllStoredNames(std::vector<std::string> &names, bool reload) {
             if (reload)loadAllJointStates();
             names.clear();
             for (const auto &pair: joint_states_) {
@@ -34,7 +36,7 @@ namespace joint_storage {
             return joint_states_.find(name) != joint_states_.end();
         }
 
-        bool addJointState(const sensor_msgs::JointState& joint_state, const std::string &name){
+        bool addJointState(const sensor_msgs::JointState &joint_state, const std::string &name) {
             // add joint state to map
             auto it = joint_states_.find(name);
             bool already_exists = false;
@@ -49,7 +51,8 @@ namespace joint_storage {
         }
 
     protected:
-        virtual bool storeJointState(sensor_msgs::JointState joint_state, const std::string &name, bool already_exists) = 0;
+        virtual bool
+        storeJointState(sensor_msgs::JointState joint_state, const std::string &name, bool already_exists) = 0;
 
         std::map<std::string, sensor_msgs::JointState> joint_states_;
         std::string robot_name_;
