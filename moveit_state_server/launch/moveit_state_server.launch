@@ -12,7 +12,7 @@
     <param name="moveit_state_server/port" value="$(arg port)"/>
     <param name="moveit_state_server/robot_name" value="$(arg robot)"/>
     <param name="moveit_state_server/folder_path" value="$(find moveit_state_server)/default_file_storage"/>
-    <param name="moveit_state_server/use_database" value="false"/>
+    <param name="moveit_state_server/use_database" value="true"/>
 
     <!-- specify the config files to use -->
     <rosparam ns="moveit_state_server" command="load" file="$(find moveit_state_server)/config/moveit_cpp.yaml" />

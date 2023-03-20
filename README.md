@@ -1,13 +1,17 @@
 # Moveit State Server
 
-The ROS package `moveit_state_server` offers services to store the current joint angles or the end effector position (for example, in the
+The ROS package `moveit_state_server` offers services to store the current joint angles or the end effector position (
+for example, in the
 world frame). Later the robot can return to the saved state. For this purpose, the state is given a unique name when it
 is saved via a ROS service. Later an action client, which moves to the stored position using moveit, can be called with
 the assigned name.
 The package uses the moveit_cpp functionality to access the current state and control the robot.
+
 Moreover, the node can store the joint states persistently in a database. Therefore, it makes use of the mongo database
 included in moveit_warehouse. Configured correctly, it stores the joint states in the same database as the moveit motion
-planning rviz plugin.
+planning rviz plugin. Alternatively, the joint states can be persistently stored by saving them as serialized
+sensor_msgs/JointState. The parameter `use_databse` in the `moveit_state_server.launch` file decides which persistent
+joint state storage is used.
 
 ### Launching
 
@@ -17,9 +21,9 @@ be done by selecting the `db` param while launching moveit
 ,
 see [moveit documentation: Persistent States](https://ros-planning.github.io/moveit_tutorials/doc/persistent_scenes_and_states/persistent_scenes_and_states.html)
 .
-Alternatively, the database can be launched with the database launch file in the moveit_state_server package.
+Alternatively, the database can be launched with the `database.launch` file in the moveit_state_server package.
 If using the moveit launch file, make sure to select the mongo database plugin and selecting the
-same port and hostname as in the launch file of the moveit state server.
+same port and hostname as in the launch file for the moveit state server.
 
 ```bash
 roslaunch moveit_state_server database.launch
@@ -89,10 +93,12 @@ int32 state
 
 ### Requirements
 
-This ROS package requires `moveit`
-,[see here](https://ros-planning.github.io/moveit_tutorials/doc/getting_started/getting_started.html), to be installed
+This ROS package requires `moveit`, [see here](https://ros-planning.github.io/moveit_tutorials/doc/getting_started/getting_started.html), to be installed
 
-If you want to store states persistently, `ros-noetic-warehouse-ros-mongo` must be installed.
+If you want to store states persistently with the database, the `warehouse-ros-mongo` package must be installed.
+```bash
+sudo apt install ros-noetic-warehouse-ros-mongo
+```
 
 ### Contributing
 

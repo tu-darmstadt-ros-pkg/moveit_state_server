@@ -77,14 +77,3 @@ if (CATKIN_ENABLE_TESTING)
     catkin_add_gtest(joint_state_storage_test test/joint_state_storage_test.cpp)
     target_link_libraries(joint_state_storage_test ${TEST_LIBRARIES})
 endif ()
-
-# to run: catkin build --this --no-deps -DENABLE_COVERAGE_TESTING=ON -DCMAKE_BUILD_TYPE=Debug -v --catkin-make-args hector_math_coverage
-# Path to results overview will be printed in the build process
-# Big thanks to the moveit people from whose docs I've obtained the information on how to get the coverage
-if (CATKIN_ENABLE_TESTING AND ENABLE_COVERAGE_TESTING)
-    find_package(code_coverage REQUIRED)   # catkin package ros-*-code-coverage
-    include(CodeCoverage)
-    APPEND_COVERAGE_COMPILER_FLAGS()
-    set(COVERAGE_EXCLUDES "*/${PROJECT_NAME}/test*" "*/build/*")
-    add_code_coverage(NAME ${PROJECT_NAME}_coverage)
-endif ()

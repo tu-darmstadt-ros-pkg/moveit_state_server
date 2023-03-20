@@ -97,6 +97,5 @@ namespace joint_storage {
         } else {
             ROS_WARN("Connection to database could not be established");
         }
-
     }
 }// namespace joint_storage

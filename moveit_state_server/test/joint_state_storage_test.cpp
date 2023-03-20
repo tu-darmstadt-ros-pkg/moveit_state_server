@@ -52,7 +52,7 @@ void testOverwriteJointState(const std::shared_ptr<joint_storage::JointStateStor
 }
 
 void testReloadedJointStates(const std::shared_ptr<joint_storage::JointStateStorage> &storage,
-                             sensor_msgs::JointState joint_state, std::string name) {
+                             const sensor_msgs::JointState& joint_state, const std::string& name) {
     // Create a test joint state
 
     storage->loadAllJointStates();
@@ -63,29 +63,34 @@ void testReloadedJointStates(const std::shared_ptr<joint_storage::JointStateStor
     EXPECT_EQ(joint_state.name, joint_state_out.name);
     EXPECT_EQ(joint_state.position, joint_state_out.position);
 }
-
+void clearFileStorages(std::string folder){
+    boost::filesystem::remove_all(folder);
+}
 std::shared_ptr<joint_storage::JointStateStorage> initializeStorageDatabase() {
     std::string hostname = "localhost";
     int port = 33289;
     return std::make_shared<joint_storage::JointStateStorageDatabase>(hostname, port, std::string("asterix"));
 }
 
-std::shared_ptr<joint_storage::JointStateStorage> initializeFileStorage() {
+std::shared_ptr<joint_storage::JointStateStorage> initializeFileStorage(bool clear_content=false) {
     std::string folder_path = ros::package::getPath("moveit_state_server") + "/test/default_test_file_storage";
+    if(clear_content) clearFileStorages(folder_path);
     return std::make_shared<joint_storage::JointStateFileStorage>(folder_path, std::string("asterix"));
 }
 
-TEST(JointStateStorageDatabase, GetStoredJointState) {
+
+
+TEST(JointStateStorageDatabase, GetStoredJointState_DB) {
     auto storage = initializeStorageDatabase();
     testGetStoredJointState(storage);
 }
 
-TEST(JointStateStorageDatabase, OverwriteJointState) {
+TEST(JointStateStorageDatabase, OverwriteJointState_DB) {
     auto storage = initializeStorageDatabase();
     testOverwriteJointState(storage);
 }
 
-TEST(JointStateStorageDatabase, ReloadFromDatabaseOrFile) {
+TEST(JointStateStorageDatabase, ReloadFromDatabaseOrFile_DB) {
     auto storage = initializeStorageDatabase();
     sensor_msgs::JointState joint_state;
     std::string name = "test_joint";
@@ -97,18 +102,18 @@ TEST(JointStateStorageDatabase, ReloadFromDatabaseOrFile) {
     testReloadedJointStates(storage, joint_state, name);
 }
 
-TEST(JointStateFileStorage, GetStoredJointState) {
+TEST(JointStateFileStorage, GetStoredJointState_FILE) {
     auto storage = initializeFileStorage();
     testGetStoredJointState(storage);
 }
 
-TEST(JointStateFileStorage, OverwriteJointState) {
+TEST(JointStateFileStorage, OverwriteJointState_FILE) {
     auto storage = initializeFileStorage();
     testOverwriteJointState(storage);
 }
 
-TEST(JointStateFileStorage, ReloadFromDatabaseOrFile) {
-    auto storage = initializeFileStorage();
+TEST(JointStateFileStorage, ReloadFromDatabaseOrFile_FILE) {
+    auto storage = initializeFileStorage(true);
     sensor_msgs::JointState joint_state;
     std::string name = "test_joint";
     joint_state.name = {"joint1", "joint2", "joint3"};
@@ -121,6 +126,7 @@ TEST(JointStateFileStorage, ReloadFromDatabaseOrFile) {
 
 //needs to be launched as rostest
 // e.g.: rostest moveit_state_server joint_state_storage_test.test
+// reset of db does not seem to work, clear test/default_warehouse_db.launch
 int main(int argc, char **argv) {
     ros::init(argc, argv, "test_joint_storage");
     testing::InitGoogleTest(&argc, argv);
