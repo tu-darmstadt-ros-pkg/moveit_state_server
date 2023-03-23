@@ -14,7 +14,6 @@ find_package(catkin REQUIRED
         )
 
 find_package(Eigen3 REQUIRED)
-find_package(Boost REQUIRED COMPONENTS filesystem)
 catkin_package(
         LIBRARIES ${PROJECT_NAME}
         CATKIN_DEPENDS
@@ -24,20 +23,22 @@ catkin_package(
         moveit_state_server_msgs
 )
 
-###########
-## Build ##
-###########
+include_directories(${EIGEN_INCLUDE_DIRS} include)
+add_definitions(${EIGEN_DEFINITIONS})
 
-
-add_library(${PROJECT_NAME} INTERFACE)
-target_include_directories(${PROJECT_NAME} INTERFACE
-        $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
-        $<INSTALL_INTERFACE:include>
+include_directories(
         ${catkin_INCLUDE_DIRS}
+        include
+)
+
+
+
+add_executable(moveit_state_server
+        src/moveit_state_server.cpp )
+
+target_link_libraries(moveit_state_server
+        ${catkin_LIBRARIES}
         )
-target_link_libraries(${PROJECT_NAME} INTERFACE ${EIGEN3_LIBRARIES})
-
-
 
 #############
 ## Install ##
@@ -46,16 +47,15 @@ target_link_libraries(${PROJECT_NAME} INTERFACE ${EIGEN3_LIBRARIES})
 # all install targets should use catkin DESTINATION variables
 # See http://ros.org/doc/api/catkin/html/adv_user_guide/variables.html
 
-install(TARGETS ${PROJECT_NAME}
-        ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-        LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-        RUNTIME DESTINATION ${CATKIN_GLOBAL_BIN_DESTINATION}
+install(TARGETS moveit_state_server
+        RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
         )
 
-## Mark cpp header files for installation
-install(DIRECTORY include/${PROJECT_NAME}/
-        DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
-        )
+#install(DIRECTORY
+#        config
+#        launch
+#        DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+#        )
 
 #############
 ## Testing ##
@@ -75,5 +75,5 @@ if (CATKIN_ENABLE_TESTING)
     )
     ## Add gtest based cpp test target and link libraries
     catkin_add_gtest(joint_state_storage_test test/joint_state_storage_test.cpp)
-    target_link_libraries(joint_state_storage_test ${TEST_LIBRARIES})
+    target_link_libraries(joint_state_storage_test ${catkin_LIBRARIES})
 endif ()

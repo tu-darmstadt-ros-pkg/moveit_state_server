@@ -35,5 +35,8 @@ namespace joint_storage {
         std::string host_name_;
         int port_;
     };
-}// namespace joint_storage
+}// namespace joint_storage#
+
+#include "moveit_state_server/joint_state_storage_database_impl.h"
+
 #endif //MOVEIT_STATE_SERVER_JOINT_STATE_STORAGE_DATABASE_H

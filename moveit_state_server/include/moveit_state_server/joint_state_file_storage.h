@@ -33,5 +33,6 @@ namespace joint_storage {
     };
 
 } // namespace joint_storage
+#include "moveit_state_server/joint_state_file_storage_impl.h"
 
 #endif //MOVEIT_STATE_SERVER_JOINT_STATE_FILE_STORAGE_H
