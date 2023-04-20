@@ -11,9 +11,13 @@ find_package(catkin REQUIRED
         geometry_msgs
         moveit_state_server_msgs
         controller_manager
+        dynamic_reconfigure
         )
 
 find_package(Eigen3 REQUIRED)
+
+generate_dynamic_reconfigure_options(config/MoveitStateServer.cfg)
+
 catkin_package(
         LIBRARIES ${PROJECT_NAME}
         CATKIN_DEPENDS

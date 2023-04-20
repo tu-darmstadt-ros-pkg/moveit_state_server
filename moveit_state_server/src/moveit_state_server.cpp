@@ -35,11 +35,47 @@ namespace moveit_state_server {
         // START SIMPLE ACTION CLIENT
         as_.registerPreemptCallback([this] { preemptCB(); });
         as_.start();
+
+        // SETUP DYNAMIC RECONFIGURE
+        config_server_.setCallback([this](auto &&PH1, auto &&PH2) {
+            configCallback(std::forward<decltype(PH1)>(PH1), std::forward<decltype(PH2)>(PH2));
+        });
+    }
+
+    void MoveitStateServer::configCallback(const moveit_state_server::MoveitStateServerConfig &config, uint32_t level){
+        if(config.pose_reference_frame !=position_reference_frame_ ){
+            ROS_INFO("[MoveitStateServer::configCallback] Changed pose_reference_frame. Deleting stored positions.");
+            poses_.clear();
+            position_reference_frame_ = config.pose_reference_frame;
+        }
+        if(config.planning_group != planning_group_){
+            ROS_INFO("[MoveitStateServer::configCallback] Change Planning_group. Resetting moveit variables");
+            planning_group_ = config.planning_group;
+            resetMoveit();
+        }
+        bool reset_file_storage = (use_database_for_persistent_storage_ != config.use_database_vs_filestorage) ||
+                (use_database_for_persistent_storage_ && (config.hostname != hostname_ || config.port != port_)) ||
+                (!use_database_for_persistent_storage_ && config.folder_path != folder_path_);
+        folder_path_ = config.folder_path;
+        hostname_ = config.hostname;
+        port_ = config.port;
+        use_database_for_persistent_storage_ = config.use_database_vs_filestorage;
+        if(reset_file_storage){
+            ROS_INFO("[MoveitStateServer::configCallback] Resetting Joint State Storage.");
+            resetJointStateStorage();
+        }
+
     }
 
     void MoveitStateServer::initialize() {
         // SETUP MOVEIT_CPP
         resetMoveit();
+        // SETUP PERSISTENT JOINT STATE STORAGE EITHER DATABASE OR FILE STORAGE
+        resetJointStateStorage();
+        initialized_ = true;
+    }
+
+    void MoveitStateServer::resetJointStateStorage(){
         // SETUP PERSISTENT JOINT STATE STORAGE EITHER DATABASE OR FILE STORAGE
         if (use_database_for_persistent_storage_) {
             ROS_INFO("Initializing Database Joint Storage.");
@@ -51,22 +87,15 @@ namespace moveit_state_server {
             joint_state_storage_ = std::make_unique<joint_storage::JointStateFileStorage>(folder_path_, robot_name_);
             joint_state_storage_->loadAllJointStates();
         }
-        initialized_ = true;
     }
-
     void MoveitStateServer::resetMoveit() {
         ROS_INFO("Setup Moveit #25");
         // SETUP MOVEIT_CPP - make sure that params are on
         moveit_cpp_ptr_.reset(new moveit_cpp::MoveItCpp(pnh_));
-        ROS_INFO("Setup Moveit #26");
         moveit_cpp_ptr_->getPlanningSceneMonitorNonConst()->providePlanningSceneService();
-        ROS_INFO("Setup Moveit #27");
         planning_components_ = std::make_shared<moveit_cpp::PlanningComponent>(planning_group_, moveit_cpp_ptr_);
-        ROS_INFO("Setup Moveit #28");
         auto robot_model_ptr = moveit_cpp_ptr_->getRobotModel();
-        ROS_INFO("Setup Moveit #29");
         auto joint_model_group_ptr = robot_model_ptr->getJointModelGroup(planning_group_);
-        ROS_INFO("Setup Moveit #30");
         joint_names_ = joint_model_group_ptr->getActiveJointModelNames();
         end_effector_ = joint_model_group_ptr->getLinkModelNames().back();
         // PRINT JOINT NAMES AND THE END EFFECTOR OF THE SELECTED PLANNING GROUP

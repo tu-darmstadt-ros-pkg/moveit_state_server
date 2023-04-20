@@ -17,6 +17,9 @@
 #include <moveit/moveit_cpp/moveit_cpp.h>
 #include <moveit/moveit_cpp/planning_component.h>
 #include <moveit_state_server/joint_state_storage.h>
+#include <moveit_state_server/MoveitStateServerConfig.h>
+#include <dynamic_reconfigure/server.h>
+
 
 namespace moveit_state_server {
     inline
@@ -58,6 +61,10 @@ namespace moveit_state_server {
 
         void initialize();
 
+        void resetJointStateStorage();
+
+        void configCallback(const moveit_state_server::MoveitStateServerConfig &config, uint32_t level);
+
         ros::NodeHandle nh_;
         ros::NodeHandle pnh_;
         // params for Joint Storage
@@ -82,6 +89,7 @@ namespace moveit_state_server {
         std::vector<std::string> joint_names_;
         std::map<std::string, geometry_msgs::PoseStamped> poses_;
         std::unique_ptr<joint_storage::JointStateStorage> joint_state_storage_;
+        dynamic_reconfigure::Server<moveit_state_server::MoveitStateServerConfig> config_server_;
         bool use_database_for_persistent_storage_ = true;
         bool initialized_ = false;
     private:
