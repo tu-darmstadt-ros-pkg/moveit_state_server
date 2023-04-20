@@ -1,7 +1,7 @@
 <launch>
     <arg name="db" default="true" />
     <!-- Allow user to specify database location -->
-    <arg name="db_path" default="$(find moveit_state_server)/default_warehouse_mongo_db" />
+    <arg name="db_path" default="$(find moveit_state_server)/joint_states/default_warehouse_mongo_db" />
     <!-- If database loading was enabled, start mongodb as well -->
     <include file="$(dirname)/default_warehouse_db.launch" if="$(arg db)">
         <arg name="moveit_warehouse_database_path" value="$(arg db_path)"/>

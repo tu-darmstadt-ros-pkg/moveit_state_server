@@ -60,6 +60,8 @@ install(TARGETS moveit_state_server
 install(DIRECTORY
         config
         launch
+        joint_states/default_file_storage
+        joint_states/default_warehouse_mongo_db
         DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
         )
 

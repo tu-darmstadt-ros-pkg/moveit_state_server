@@ -2,8 +2,6 @@
 .idea/
 cmake-build-*/
 build/
-moveit_state_server/default_warehouse_mongo_db/*
 moveit_state_server/test/default_warehouse_mongo_db/
 moveit_state_server/test/default_test_file_storage/
-moveit_state_server/default_file_storage
-moveit_state_server/default_warehouse_mongo_db
+
