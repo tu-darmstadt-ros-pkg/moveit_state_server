@@ -7,11 +7,10 @@
 // controller_manager_msgs.srv import SwitchController, SwitchControllerRequest
 
 namespace moveit_state_server {
-    MoveitStateServer::MoveitStateServer(ros::NodeHandle &pnh) : as_(nh_, std::string(ROS_PACKAGE_NAME) +
-                                                                          "/move_arm_to_stored_pose",
+    MoveitStateServer::MoveitStateServer(ros::NodeHandle &pnh) : as_(nh_,"/move_arm_to_stored_pose",
                                                                      [this](auto &&PH1) {
                                                                          goalCB(std::forward<decltype(PH1)>(PH1));
-                                                                     }, false) {
+                                                                     }, false), pnh_(pnh) {
         // SET PARAMETERS FROM LAUNCH FILE
         pnh.param("planning_group", planning_group_, std::string("arm_group"));
         pnh.param("pose_reference_frame", position_reference_frame_, std::string("world"));
@@ -31,25 +30,9 @@ namespace moveit_state_server {
         retrieve_pose_server =
                 pnh.advertiseService(retrieve_pose_service_name_, &MoveitStateServer::retrievePoseService, this);
         switch_controllers_ = nh_.serviceClient<controller_manager_msgs::SwitchController>(
-                "/manipulator_arm_control/"
-                "controller_manager/"
-                "switch_controller");
+                "/manipulator_arm_control/controller_manager/switch_controller");
 
-        // SETUP MOVEIT_CPP
-        moveit_cpp_ptr_ = std::make_shared<moveit_cpp::MoveItCpp>(pnh);
-        moveit_cpp_ptr_->getPlanningSceneMonitorNonConst()->providePlanningSceneService();
-        planning_components_ = std::make_shared<moveit_cpp::PlanningComponent>(planning_group_, moveit_cpp_ptr_);
-        auto robot_model_ptr = moveit_cpp_ptr_->getRobotModel();
-        auto joint_model_group_ptr = robot_model_ptr->getJointModelGroup(planning_group_);
-        joint_names_ = joint_model_group_ptr->getActiveJointModelNames();
-        end_effector_ = joint_model_group_ptr->getLinkModelNames().back();
-
-        // PRINT JOINT NAMES AND THE END EFFECTOR OF THE SELECTED PLANNING GROUP
-        std::stringstream ss;
-        ss << "available joints: ";
-        for (const auto &elm: joint_names_) ss << elm << ", ";
-        ss << "; end effector: " << end_effector_;
-        ROS_INFO_STREAM(ss.str());
+        resetMoveit();
 
         // START ACTION SIMPLE ACTION CLIENT
         as_.registerPreemptCallback([this] { preemptCB(); });
@@ -66,6 +49,30 @@ namespace moveit_state_server {
             joint_state_storage_->loadAllJointStates();
         }
 
+    }
+
+    void MoveitStateServer::resetMoveit(){
+        if(moveit_cpp_ptr_ != nullptr)moveit_cpp_ptr_.reset();
+        // SETUP MOVEIT_CPP
+        moveit_cpp_ptr_ = std::make_shared<moveit_cpp::MoveItCpp>(pnh_);
+        moveit_cpp_ptr_->getPlanningSceneMonitorNonConst()->providePlanningSceneService();
+        planning_components_ = std::make_shared<moveit_cpp::PlanningComponent>(planning_group_, moveit_cpp_ptr_);
+        auto robot_model_ptr = moveit_cpp_ptr_->getRobotModel();
+        auto joint_model_group_ptr = robot_model_ptr->getJointModelGroup(planning_group_);
+        joint_names_ = joint_model_group_ptr->getActiveJointModelNames();
+        end_effector_ = joint_model_group_ptr->getLinkModelNames().back();
+        bool managing_controllers = moveit_cpp_ptr_->getTrajectoryExecutionManagerNonConst()->isManagingControllers();
+        if(managing_controllers){
+            ROS_INFO("Managing controllers #43");
+        }else{
+            ROS_ERROR("Not managing controllers! #43");
+        }
+        // PRINT JOINT NAMES AND THE END EFFECTOR OF THE SELECTED PLANNING GROUP
+        std::stringstream ss;
+        ss << "available joints: ";
+        for (const auto &elm: joint_names_) ss << elm << ", ";
+        ss << "; end effector: " << end_effector_;
+        ROS_INFO_STREAM(ss.str());
     }
 
     void MoveitStateServer::storeCurrentJointStates(const std::string &name) {
@@ -139,8 +146,8 @@ namespace moveit_state_server {
             switchController.request.start_controllers = stop_controllers;
             switchController.request.stop_controllers = start_controllers;
         }
-        switchController.request.strictness = 1;
-        return this->switch_controllers_.call(switchController);
+        switchController.request.strictness = switchController.request.BEST_EFFORT;
+        return switch_controllers_.call(switchController);
     }
 
 
@@ -188,6 +195,16 @@ namespace moveit_state_server {
 
         // switch arm controller and move arm depending on selected options
         if (switchController(false)) {
+            // check if moveit thinks controllers are active
+            // strange bug; sometimes controllers are active, but moveit thinks they are inactive
+            // resetting moveit_cpp_ptr seems to help
+            int counter = 0;
+            while(!moveit_cpp_ptr_->getTrajectoryExecutionManager()->ensureActiveControllersForGroup("arm_group") && counter<5){
+                ROS_ERROR("Controllers seem to be inactive #44");
+                ROS_WARN("Resetting moveit params");
+                resetMoveit();
+                counter++;
+            }
             if (goal->mode == moveit_state_server_msgs::GoToStoredStateGoal::GO_TO_STORED_JOINT_POSITIONS) {
                 goToStoredJointState(goal->name);
             } else {

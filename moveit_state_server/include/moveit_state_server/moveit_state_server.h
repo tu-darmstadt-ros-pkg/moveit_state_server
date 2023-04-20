@@ -54,6 +54,8 @@ namespace moveit_state_server {
 
         void goToStoredEndeffectorPosition(const std::string &name);
 
+        void resetMoveit();
+
 
         ros::NodeHandle nh_;
         ros::NodeHandle pnh_;
