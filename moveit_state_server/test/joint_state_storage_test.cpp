@@ -52,7 +52,7 @@ void testOverwriteJointState(const std::shared_ptr<joint_storage::JointStateStor
 }
 
 void testReloadedJointStates(const std::shared_ptr<joint_storage::JointStateStorage> &storage,
-                             const sensor_msgs::JointState& joint_state, const std::string& name) {
+                             const sensor_msgs::JointState &joint_state, const std::string &name) {
     // Create a test joint state
 
     storage->loadAllJointStates();
@@ -63,21 +63,22 @@ void testReloadedJointStates(const std::shared_ptr<joint_storage::JointStateStor
     EXPECT_EQ(joint_state.name, joint_state_out.name);
     EXPECT_EQ(joint_state.position, joint_state_out.position);
 }
-void clearFileStorages(std::string folder){
+
+void clearFileStorages(std::string folder) {
     boost::filesystem::remove_all(folder);
 }
+
 std::shared_ptr<joint_storage::JointStateStorage> initializeStorageDatabase() {
     std::string hostname = "localhost";
     int port = 33289;
     return std::make_shared<joint_storage::JointStateStorageDatabase>(hostname, port, std::string("asterix"));
 }
 
-std::shared_ptr<joint_storage::JointStateStorage> initializeFileStorage(bool clear_content=false) {
+std::shared_ptr<joint_storage::JointStateStorage> initializeFileStorage(bool clear_content = false) {
     std::string folder_path = ros::package::getPath("moveit_state_server") + "/test/default_test_file_storage";
-    if(clear_content) clearFileStorages(folder_path);
+    if (clear_content) clearFileStorages(folder_path);
     return std::make_shared<joint_storage::JointStateFileStorage>(folder_path, std::string("asterix"));
 }
-
 
 
 TEST(JointStateStorageDatabase, GetStoredJointState_DB) {

@@ -7,7 +7,7 @@
 // controller_manager_msgs.srv import SwitchController, SwitchControllerRequest
 
 namespace moveit_state_server {
-    MoveitStateServer::MoveitStateServer(ros::NodeHandle &pnh) : as_(nh_,"/move_arm_to_stored_pose",
+    MoveitStateServer::MoveitStateServer(ros::NodeHandle &pnh) : as_(nh_, "/move_arm_to_stored_pose",
                                                                      [this](auto &&PH1) {
                                                                          goalCB(std::forward<decltype(PH1)>(PH1));
                                                                      }, false), pnh_(pnh) {
@@ -35,11 +35,11 @@ namespace moveit_state_server {
         // avoids crashing at start, possibly due to race condition with controllers
         // resetMoveit();
 
-        // START ACTION SIMPLE ACTION CLIENT
+        // START SIMPLE ACTION CLIENT
         as_.registerPreemptCallback([this] { preemptCB(); });
         as_.start();
 
-        // SETUP PERSISTENT JOINT STATE STORAGE
+        // SETUP PERSISTENT JOINT STATE STORAGE EITHER DATABASE OR FILE STORAGE
         if (use_database_for_persistent_storage_) {
             joint_state_storage_ = std::make_unique<joint_storage::JointStateStorageDatabase>(hostname, port,
                                                                                               robot_name_);
@@ -51,7 +51,7 @@ namespace moveit_state_server {
         }
     }
 
-    void MoveitStateServer::resetMoveit(){
+    void MoveitStateServer::resetMoveit() {
         //if(moveit_cpp_ptr_.() != nullptr)moveit_cpp_ptr_.reset();
         ROS_INFO("Setup Moveit #25");
         // SETUP MOVEIT_CPP
@@ -62,18 +62,13 @@ namespace moveit_state_server {
         auto joint_model_group_ptr = robot_model_ptr->getJointModelGroup(planning_group_);
         joint_names_ = joint_model_group_ptr->getActiveJointModelNames();
         end_effector_ = joint_model_group_ptr->getLinkModelNames().back();
-        bool managing_controllers = moveit_cpp_ptr_->getTrajectoryExecutionManagerNonConst()->isManagingControllers();
-        if(managing_controllers){
-            ROS_INFO("Managing controllers #43");
-        }else{
-            ROS_ERROR("Not managing controllers! #43");
-        }
         // PRINT JOINT NAMES AND THE END EFFECTOR OF THE SELECTED PLANNING GROUP
         std::stringstream ss;
         ss << "available joints: ";
         for (const auto &elm: joint_names_) ss << elm << ", ";
         ss << "; end effector: " << end_effector_;
         ROS_INFO_STREAM(ss.str());
+        ROS_INFO("Finished Moveit Setup");
     }
 
     void MoveitStateServer::storeCurrentJointStates(const std::string &name) {
@@ -106,7 +101,8 @@ namespace moveit_state_server {
 
     bool MoveitStateServer::storePoseService(moveit_state_server_msgs::StorePoseRequest &req,
                                              moveit_state_server_msgs::StorePoseResponse &res) {
-        if(moveit_cpp_ptr_.get() == nullptr)resetMoveit();
+        // initialize moveit_cpp before first use
+        if (moveit_cpp_ptr_.get() == nullptr)resetMoveit();
         if (req.mode == moveit_state_server_msgs::StorePoseRequest::STORE_JOINT_POSITIONS) {
             storeCurrentJointStates(req.name);
         }
@@ -121,7 +117,8 @@ namespace moveit_state_server {
 
     bool MoveitStateServer::retrievePoseService(moveit_state_server_msgs::RetrievePoseRequest &req,
                                                 moveit_state_server_msgs::RetrievePoseResponse &res) {
-        if(moveit_cpp_ptr_.get() == nullptr)resetMoveit();
+        // initialize moveit_cpp before first use
+        if (moveit_cpp_ptr_.get() == nullptr)resetMoveit();
         if (req.mode == moveit_state_server_msgs::RetrievePoseRequest::RETRIEVE_END_EFFECTOR_POSE) {
             geometry_msgs::PoseStamped pose;
             auto it = poses_.find(req.name);
@@ -178,7 +175,8 @@ namespace moveit_state_server {
     }
 
     void MoveitStateServer::goalCB(const moveit_state_server_msgs::GoToStoredStateGoalConstPtr &goal) {
-        if(moveit_cpp_ptr_.get() == nullptr)resetMoveit();
+        // initialize moveit_cpp before first use
+        if (moveit_cpp_ptr_.get() == nullptr)resetMoveit();
         //verify that the named pose has been previously stored
         if (goal->mode == moveit_state_server_msgs::GoToStoredStateGoal::GO_TO_STORED_JOINT_POSITIONS and
             !joint_state_storage_->isJointStateStored(goal->name, true)) {
@@ -203,7 +201,8 @@ namespace moveit_state_server {
             // strange bug; sometimes controllers are active, but moveit thinks they are inactive
             // resetting moveit_cpp_ptr seems to help
             int counter = 0;
-            while(!moveit_cpp_ptr_->getTrajectoryExecutionManager()->ensureActiveControllersForGroup("arm_group") && counter<5){
+            while (!moveit_cpp_ptr_->getTrajectoryExecutionManager()->ensureActiveControllersForGroup("arm_group") &&
+                   counter < 5) {
                 ROS_ERROR("Controllers seem to be inactive #44");
                 ROS_WARN("Resetting moveit params");
                 resetMoveit();

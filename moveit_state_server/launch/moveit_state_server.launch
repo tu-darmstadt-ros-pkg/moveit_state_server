@@ -4,7 +4,8 @@
     <arg name="robot" default="$(env DEFAULT_ROBOT_TYPE)"/>
     <arg name="hostname" default="localhost"/>
     <arg name="port" default="33289"/>
-
+    <arg name="database_instead_of_filestorage" default="true"/>
+    <arg name="launch_database" default="true"/>
 
     <param name="moveit_state_server/planning_group" value="arm_group"/>
     <param name="moveit_state_server/pose_reference_frame" value="world"/>
@@ -12,23 +13,27 @@
     <param name="moveit_state_server/port" value="$(arg port)"/>
     <param name="moveit_state_server/robot_name" value="$(arg robot)"/>
     <param name="moveit_state_server/folder_path" value="$(find moveit_state_server)/default_file_storage"/>
-    <param name="moveit_state_server/use_database" value="true"/>
+    <param name="moveit_state_server/use_database" value="$(arg database_instead_of_filestorage)"/> <!-- database vs file storage -->
 
-    <!-- specify the config files to use -->
+    <!-- launch database if launch_database and  database_instead_of_filestorage true-->
+    <!-- mongo must be installed see Readme -->
+    <group if="$(arg database_instead_of_filestorage)">
+        <include file="$(find moveit_state_server)/launch/database.launch" if="$(arg launch_database)"/>
+    </group>
+    <!-- specify the config files to use-->
     <rosparam ns="moveit_state_server" command="load" file="$(find moveit_state_server)/config/moveit_cpp.yaml" />
 
-    <!-- planning pipeline -->
+    <!-- planning pipeline in moveit_state_server namespace-->
     <include ns="/moveit_state_server/ompl" file="$(eval find(arg('robot') + '_moveit_config') + '/launch/ompl_planning_pipeline.launch.xml')"/>
 
-    <!-- trajectory execution  -->
+    <!-- trajectory execution in moveit_state_server namespace-->
     <include ns="moveit_state_server" file="$(eval find(arg('robot') + '_moveit_config') + '/launch/trajectory_execution.launch.xml')">
-      <!--<arg name="moveit_controller_manager" value="fake"/>-->
     </include>
 
     <!-- load the URDF, SRDF and other .yaml configuration files on the param server -->
-    <include file="$(eval find(arg('robot') + '_moveit_config') + '/launch/planning_context.launch')">
+   <!--  <include file="$(eval find(arg('robot') + '_moveit_config') + '/launch/planning_context.launch')">
         <arg name="load_robot_description" value="true"/>
-    </include>
+    </include>-->
     
     <node name="moveit_state_server" pkg="moveit_state_server" type="moveit_state_server" respawn="false" output="screen"/>
 
