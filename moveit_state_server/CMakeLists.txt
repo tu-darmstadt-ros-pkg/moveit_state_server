@@ -60,7 +60,6 @@ install(TARGETS moveit_state_server
 install(DIRECTORY
         config
         launch
-        joint_states
         DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
         )
 

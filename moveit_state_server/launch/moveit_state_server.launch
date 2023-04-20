@@ -12,7 +12,7 @@
     <param name="moveit_state_server/hostname" value="$(arg hostname)"/>
     <param name="moveit_state_server/port" value="$(arg port)"/>
     <param name="moveit_state_server/robot_name" value="$(arg robot)"/>
-    <param name="moveit_state_server/folder_path" value="$(find moveit_state_server)/joint_states/default_file_storage"/>
+    <param name="moveit_state_server/folder_path" value="$(eval find(arg('robot') + '_moveit_config') + '/moveit_state_server_storage/default_file_storage')"/>
     <param name="moveit_state_server/use_database" value="$(arg database_instead_of_filestorage)"/> <!-- database vs file storage -->
 
     <!-- launch database if launch_database and  database_instead_of_filestorage true-->
