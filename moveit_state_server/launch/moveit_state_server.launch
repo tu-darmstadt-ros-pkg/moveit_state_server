@@ -5,7 +5,7 @@
     <arg name="hostname" default="localhost"/>
     <arg name="port" default="33289"/>
     <arg name="database_instead_of_filestorage" default="true"/>
-    <arg name="launch_database" default="true"/>
+    <arg name="launch_database" default="false"/>
 
     <param name="moveit_state_server/planning_group" value="arm_group"/>
     <param name="moveit_state_server/pose_reference_frame" value="world"/>
