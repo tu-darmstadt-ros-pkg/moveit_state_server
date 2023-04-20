@@ -1,5 +1,6 @@
 int32 mode
 string name
+string planning_group
 int32 GO_TO_STORED_JOINT_POSITIONS=0
 int32 GO_TO_STORED_END_EFFECTOR_POSE=1
 ---

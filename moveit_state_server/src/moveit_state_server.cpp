@@ -10,7 +10,6 @@ namespace moveit_state_server {
                                                                      [this](auto &&PH1) {
                                                                          goalCB(std::forward<decltype(PH1)>(PH1));
                                                                      }, false), pnh_(pnh) {
-        ROS_WARN_STREAM("Private Node Handle namespace: " << pnh.getNamespace() << " #11");
         // SET PARAMETERS FROM LAUNCH FILE
         pnh.param("planning_group", planning_group_, std::string("arm_group"));
         pnh.param("pose_reference_frame", position_reference_frame_, std::string("world"));
@@ -93,6 +92,11 @@ namespace moveit_state_server {
         // SETUP MOVEIT_CPP - make sure that params are on
         moveit_cpp_ptr_.reset(new moveit_cpp::MoveItCpp(pnh_));
         moveit_cpp_ptr_->getPlanningSceneMonitorNonConst()->providePlanningSceneService();
+        loadPlanningGroup();
+        ROS_INFO("Finished Moveit Setup");
+    }
+
+    void MoveitStateServer::loadPlanningGroup() {
         planning_components_ = std::make_shared<moveit_cpp::PlanningComponent>(planning_group_, moveit_cpp_ptr_);
         auto robot_model_ptr = moveit_cpp_ptr_->getRobotModel();
         auto joint_model_group_ptr = robot_model_ptr->getJointModelGroup(planning_group_);
@@ -104,7 +108,7 @@ namespace moveit_state_server {
         for (const auto &elm: joint_names_) ss << elm << ", ";
         ss << "; end effector: " << end_effector_;
         ROS_INFO_STREAM(ss.str());
-        ROS_INFO("Finished Moveit Setup");
+        ROS_INFO("Finished Planning Group Setup");
     }
 
     void MoveitStateServer::storeCurrentJointStates(const std::string &name) {
@@ -139,6 +143,11 @@ namespace moveit_state_server {
                                              moveit_state_server_msgs::StorePoseResponse &res) {
         // initialize moveit_cpp and JointStorage before first use
         if (!initialized_) initialize();
+        // check if planning group still the same else load planning group
+        if(planning_group_ != req.planning_group){
+            planning_group_ = req.planning_group;
+            loadPlanningGroup();
+        }
         if (req.mode == moveit_state_server_msgs::StorePoseRequest::STORE_JOINT_POSITIONS) {
             storeCurrentJointStates(req.name);
         }
@@ -155,6 +164,11 @@ namespace moveit_state_server {
                                                 moveit_state_server_msgs::RetrievePoseResponse &res) {
         // initialize moveit_cpp and JointStorage before first use
         if (!initialized_) initialize();
+        // check if planning group still the same else load planning group
+        if(planning_group_ != req.planning_group){
+            planning_group_ = req.planning_group;
+            loadPlanningGroup();
+        }
         if (req.mode == moveit_state_server_msgs::RetrievePoseRequest::RETRIEVE_END_EFFECTOR_POSE) {
             geometry_msgs::PoseStamped pose;
             auto it = poses_.find(req.name);
@@ -186,12 +200,21 @@ namespace moveit_state_server {
         return switch_controllers_.call(switchController);
     }
 
-
-    void MoveitStateServer::goToStoredJointState(const std::string &name) {
+    bool MoveitStateServer::verifyJointStateMoveGroupCompatibility(const sensor_msgs::JointState &jointState)const {
+        return joint_names_.size()==jointState.name.size() && joint_names_[0] == jointState.name[0]
+        && joint_names_.back() == jointState.name.back();
+    }
+    bool MoveitStateServer::goToStoredJointState(const std::string &name) {
         moveit::core::RobotStatePtr robot_state = moveit_cpp_ptr_->getCurrentState();
         planning_components_->setStartStateToCurrentState();
         sensor_msgs::JointState joint_state;
         if (joint_state_storage_->getStoredJointState(name, joint_state, false)) {
+            if(!verifyJointStateMoveGroupCompatibility(joint_state)){
+                ROS_ERROR_STREAM("Stored Joint states names do not match joint names"<<joint_state.name[0]<<
+                " of the selected planning group "<<planning_group_<<"!");
+                return false;
+            }
+            ROS_INFO("Verified move group joint state msg compatibility");
             robot_state->setVariableValues(joint_state);
             planning_components_->setGoal(*robot_state);
             planning_components_->plan();
@@ -199,20 +222,25 @@ namespace moveit_state_server {
         } else {
             ROS_WARN("Joint State is not saved in database");
         }
-
-
+        return true;
     }
 
-    void MoveitStateServer::goToStoredEndeffectorPosition(const std::string &name) {
+    bool MoveitStateServer::goToStoredEndeffectorPosition(const std::string &name) {
         planning_components_->setStartStateToCurrentState();
         planning_components_->setGoal(poses_[name], end_effector_);
         planning_components_->plan();
         planning_components_->execute();
+        return true;
     }
 
     void MoveitStateServer::goalCB(const moveit_state_server_msgs::GoToStoredStateGoalConstPtr &goal) {
         // initialize moveit_cpp and JointStorage before first use
         if (!initialized_) initialize();
+        // check if planning group still the same else load planning group
+        if(planning_group_ != goal->planning_group){
+            planning_group_ = goal->planning_group;
+            loadPlanningGroup();
+        }
         //verify that the named pose has been previously stored
         if (goal->mode == moveit_state_server_msgs::GoToStoredStateGoal::GO_TO_STORED_JOINT_POSITIONS and
             !joint_state_storage_->isJointStateStored(goal->name, true)) {
@@ -244,13 +272,19 @@ namespace moveit_state_server {
                 resetMoveit();
                 counter++;
             }
+            bool successful_movement;
             if (goal->mode == moveit_state_server_msgs::GoToStoredStateGoal::GO_TO_STORED_JOINT_POSITIONS) {
-                goToStoredJointState(goal->name);
+                successful_movement = goToStoredJointState(goal->name);
             } else {
-                goToStoredEndeffectorPosition(goal->name);
+                successful_movement = goToStoredEndeffectorPosition(goal->name);
             }
             switchController(true);
-            as_.setSucceeded();
+            if(successful_movement){
+                as_.setSucceeded();
+            }else{
+                as_.setAborted();
+            }
+
         }
     }
 

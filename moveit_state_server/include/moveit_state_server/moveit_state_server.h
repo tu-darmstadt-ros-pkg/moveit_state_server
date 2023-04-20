@@ -53,9 +53,9 @@ namespace moveit_state_server {
 
         void storeCurrentPose(const std::string &name);
 
-        void goToStoredJointState(const std::string &name);
+        bool goToStoredJointState(const std::string &name);
 
-        void goToStoredEndeffectorPosition(const std::string &name);
+        bool goToStoredEndeffectorPosition(const std::string &name);
 
         void resetMoveit();
 
@@ -64,6 +64,10 @@ namespace moveit_state_server {
         void resetJointStateStorage();
 
         void configCallback(const moveit_state_server::MoveitStateServerConfig &config, uint32_t level);
+
+        void loadPlanningGroup();
+
+        bool verifyJointStateMoveGroupCompatibility(const  sensor_msgs::JointState &jointState) const;
 
         ros::NodeHandle nh_;
         ros::NodeHandle pnh_;

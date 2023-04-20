@@ -2,6 +2,7 @@ int32 mode
 int32 RETRIEVE_JOINT_POSITIONS=0
 int32 RETRIEVE_END_EFFECTOR_POSE=1
 string name
+string planning_group
 ---
 sensor_msgs/JointState joint_state
 geometry_msgs/PoseStamped pose
