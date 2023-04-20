@@ -4,7 +4,6 @@
 #include <moveit/kinematic_constraints/utils.h>
 #include <moveit_state_server/joint_state_storage_database.h>
 #include <moveit_state_server/joint_state_file_storage.h>
-// controller_manager_msgs.srv import SwitchController, SwitchControllerRequest
 
 namespace moveit_state_server {
     MoveitStateServer::MoveitStateServer(ros::NodeHandle &pnh) : as_(nh_, "/move_arm_to_stored_pose",
@@ -102,7 +101,7 @@ namespace moveit_state_server {
     bool MoveitStateServer::storePoseService(moveit_state_server_msgs::StorePoseRequest &req,
                                              moveit_state_server_msgs::StorePoseResponse &res) {
         // initialize moveit_cpp before first use
-        if (moveit_cpp_ptr_.get() == nullptr)resetMoveit();
+        if (moveit_cpp_ptr_ == nullptr)resetMoveit();
         if (req.mode == moveit_state_server_msgs::StorePoseRequest::STORE_JOINT_POSITIONS) {
             storeCurrentJointStates(req.name);
         }
@@ -118,7 +117,7 @@ namespace moveit_state_server {
     bool MoveitStateServer::retrievePoseService(moveit_state_server_msgs::RetrievePoseRequest &req,
                                                 moveit_state_server_msgs::RetrievePoseResponse &res) {
         // initialize moveit_cpp before first use
-        if (moveit_cpp_ptr_.get() == nullptr)resetMoveit();
+        if (moveit_cpp_ptr_ == nullptr)resetMoveit();
         if (req.mode == moveit_state_server_msgs::RetrievePoseRequest::RETRIEVE_END_EFFECTOR_POSE) {
             geometry_msgs::PoseStamped pose;
             auto it = poses_.find(req.name);
@@ -176,7 +175,7 @@ namespace moveit_state_server {
 
     void MoveitStateServer::goalCB(const moveit_state_server_msgs::GoToStoredStateGoalConstPtr &goal) {
         // initialize moveit_cpp before first use
-        if (moveit_cpp_ptr_.get() == nullptr)resetMoveit();
+        if (moveit_cpp_ptr_ == nullptr)resetMoveit();
         //verify that the named pose has been previously stored
         if (goal->mode == moveit_state_server_msgs::GoToStoredStateGoal::GO_TO_STORED_JOINT_POSITIONS and
             !joint_state_storage_->isJointStateStored(goal->name, true)) {
@@ -233,8 +232,6 @@ int main(int argc, char **argv) {
     pnh_.getParam("planning_pipelines/pipeline_names", test);
     moveit_state_server::MoveitStateServer stateServer(pnh_);
 
-
     ros::spin();
-
     return 0;
 }
