@@ -75,13 +75,17 @@ namespace moveit_state_server {
         int port_;
         std::string folder_path_;
         std::string hostname_;
-
         std::string planning_group_ = "arm_group";
         std::string position_reference_frame_ = "world";
         std::string robot_name_;
         std::string retrieve_pose_service_name_;
         std::string end_effector_;
         std::string store_pose_service_name_;
+        int planning_attempts_ = 5;
+        double planning_time_ = 2.0;
+        double max_velocity_scaling_factor_=0.1;
+        double max_acceleration_scaling_factor_=0.1;
+        moveit_cpp::PlanningComponent::PlanRequestParameters plan_request_params_;
         ros::ServiceServer store_pose_service;
         ros::ServiceServer retrieve_pose_server;
         robot_model::RobotModelPtr moveit_robot_model_;

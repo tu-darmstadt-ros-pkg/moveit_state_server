@@ -63,7 +63,12 @@ namespace moveit_state_server {
             ROS_INFO("[MoveitStateServer::configCallback] Resetting Joint State Storage.");
             resetJointStateStorage();
         }
-
+        // PLANNING PARAMETERS
+        plan_request_params_.max_velocity_scaling_factor = config.max_velocity_scaling_factor;
+        plan_request_params_.max_acceleration_scaling_factor = config.max_acceleration_scaling_factor;
+        plan_request_params_.planning_time = config.planning_time;
+        plan_request_params_.planning_attempts = config.planning_attempts;
+        ROS_INFO_STREAM("max_velocity_scaling_factor: "<<plan_request_params_.max_velocity_scaling_factor);
     }
 
     void MoveitStateServer::initialize() {
@@ -71,6 +76,7 @@ namespace moveit_state_server {
         resetMoveit();
         // SETUP PERSISTENT JOINT STATE STORAGE EITHER DATABASE OR FILE STORAGE
         resetJointStateStorage();
+        plan_request_params_.load(pnh_);
         initialized_ = true;
     }
 
@@ -91,7 +97,13 @@ namespace moveit_state_server {
         ROS_INFO("Setup Moveit #25");
         // SETUP MOVEIT_CPP - make sure that params are on
         moveit_cpp_ptr_.reset(new moveit_cpp::MoveItCpp(pnh_));
-        moveit_cpp_ptr_->getPlanningSceneMonitorNonConst()->providePlanningSceneService();
+        //moveit_cpp_ptr_->getPlanningSceneMonitorNonConst()->providePlanningSceneService();
+        // service call to get planning scene, eg. before every move action
+        //moveit_cpp_ptr_->getPlanningSceneMonitorNonConst()->requestPlanningSceneState();
+        // or subscrive to planning scene topic
+        moveit_cpp_ptr_->getPlanningSceneMonitorNonConst()->startSceneMonitor();
+        ROS_INFO_STREAM("Planning Scene Topic: "<<
+            moveit_cpp_ptr_->getPlanningSceneMonitorNonConst()->DEFAULT_PLANNING_SCENE_TOPIC);
         loadPlanningGroup();
         ROS_INFO("Finished Moveit Setup");
     }
@@ -217,7 +229,7 @@ namespace moveit_state_server {
             ROS_INFO("Verified move group joint state msg compatibility");
             robot_state->setVariableValues(joint_state);
             planning_components_->setGoal(*robot_state);
-            planning_components_->plan();
+            planning_components_->plan(plan_request_params_);
             planning_components_->execute();
         } else {
             ROS_WARN("Joint State is not saved in database");
@@ -228,7 +240,7 @@ namespace moveit_state_server {
     bool MoveitStateServer::goToStoredEndeffectorPosition(const std::string &name) {
         planning_components_->setStartStateToCurrentState();
         planning_components_->setGoal(poses_[name], end_effector_);
-        planning_components_->plan();
+        planning_components_->plan(plan_request_params_);
         planning_components_->execute();
         return true;
     }
