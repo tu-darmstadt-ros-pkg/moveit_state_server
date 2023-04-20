@@ -10,16 +10,14 @@ namespace moveit_state_server {
                                                                      [this](auto &&PH1) {
                                                                          goalCB(std::forward<decltype(PH1)>(PH1));
                                                                      }, false), pnh_(pnh) {
+        ROS_WARN_STREAM("Private Node Handle namespace: " << pnh.getNamespace() << " #11");
         // SET PARAMETERS FROM LAUNCH FILE
         pnh.param("planning_group", planning_group_, std::string("arm_group"));
         pnh.param("pose_reference_frame", position_reference_frame_, std::string("world"));
         pnh.param("robot_name", robot_name_, std::string(""));
-        std::string hostname;
-        int port;
-        pnh.param("hostname", hostname, std::string("localhost"));
-        pnh.param("port", port, 33829);
-        std::string folder_path;
-        pnh.param("folder_path", folder_path, std::string(""));
+        pnh.param("hostname", hostname_, std::string("localhost"));
+        pnh.param("port", port_, 33829);
+        pnh.param("folder_path", folder_path_, std::string(""));
         pnh.param("use_database", use_database_for_persistent_storage_, true);
         // SETUP SERVICES FOR STORING AND RETRIEVING STATES AND FOR SWITCHING THE ARM CONTROLLER
         store_pose_service_name_ = "/store_arm_pose";
@@ -37,28 +35,38 @@ namespace moveit_state_server {
         // START SIMPLE ACTION CLIENT
         as_.registerPreemptCallback([this] { preemptCB(); });
         as_.start();
+    }
 
+    void MoveitStateServer::initialize() {
+        // SETUP MOVEIT_CPP
+        resetMoveit();
         // SETUP PERSISTENT JOINT STATE STORAGE EITHER DATABASE OR FILE STORAGE
         if (use_database_for_persistent_storage_) {
-            joint_state_storage_ = std::make_unique<joint_storage::JointStateStorageDatabase>(hostname, port,
+            ROS_INFO("Initializing Database Joint Storage.");
+            joint_state_storage_ = std::make_unique<joint_storage::JointStateStorageDatabase>(hostname_, port_,
                                                                                               robot_name_);
             joint_state_storage_->loadAllJointStates();
         } else {
-            ROS_WARN("initializing file storage.");
-            joint_state_storage_ = std::make_unique<joint_storage::JointStateFileStorage>(folder_path, robot_name_);
+            ROS_INFO("Initializing File Joint Storage.");
+            joint_state_storage_ = std::make_unique<joint_storage::JointStateFileStorage>(folder_path_, robot_name_);
             joint_state_storage_->loadAllJointStates();
         }
+        initialized_ = true;
     }
 
     void MoveitStateServer::resetMoveit() {
-        //if(moveit_cpp_ptr_.() != nullptr)moveit_cpp_ptr_.reset();
         ROS_INFO("Setup Moveit #25");
-        // SETUP MOVEIT_CPP
-        moveit_cpp_ptr_.reset(new moveit_cpp::MoveItCpp(pnh_));//std::make_shared<moveit_cpp::MoveItCpp>(pnh_);
+        // SETUP MOVEIT_CPP - make sure that params are on
+        moveit_cpp_ptr_.reset(new moveit_cpp::MoveItCpp(pnh_));
+        ROS_INFO("Setup Moveit #26");
         moveit_cpp_ptr_->getPlanningSceneMonitorNonConst()->providePlanningSceneService();
+        ROS_INFO("Setup Moveit #27");
         planning_components_ = std::make_shared<moveit_cpp::PlanningComponent>(planning_group_, moveit_cpp_ptr_);
+        ROS_INFO("Setup Moveit #28");
         auto robot_model_ptr = moveit_cpp_ptr_->getRobotModel();
+        ROS_INFO("Setup Moveit #29");
         auto joint_model_group_ptr = robot_model_ptr->getJointModelGroup(planning_group_);
+        ROS_INFO("Setup Moveit #30");
         joint_names_ = joint_model_group_ptr->getActiveJointModelNames();
         end_effector_ = joint_model_group_ptr->getLinkModelNames().back();
         // PRINT JOINT NAMES AND THE END EFFECTOR OF THE SELECTED PLANNING GROUP
@@ -100,8 +108,8 @@ namespace moveit_state_server {
 
     bool MoveitStateServer::storePoseService(moveit_state_server_msgs::StorePoseRequest &req,
                                              moveit_state_server_msgs::StorePoseResponse &res) {
-        // initialize moveit_cpp before first use
-        if (moveit_cpp_ptr_ == nullptr)resetMoveit();
+        // initialize moveit_cpp and JointStorage before first use
+        if (!initialized_) initialize();
         if (req.mode == moveit_state_server_msgs::StorePoseRequest::STORE_JOINT_POSITIONS) {
             storeCurrentJointStates(req.name);
         }
@@ -116,8 +124,8 @@ namespace moveit_state_server {
 
     bool MoveitStateServer::retrievePoseService(moveit_state_server_msgs::RetrievePoseRequest &req,
                                                 moveit_state_server_msgs::RetrievePoseResponse &res) {
-        // initialize moveit_cpp before first use
-        if (moveit_cpp_ptr_ == nullptr)resetMoveit();
+        // initialize moveit_cpp and JointStorage before first use
+        if (!initialized_) initialize();
         if (req.mode == moveit_state_server_msgs::RetrievePoseRequest::RETRIEVE_END_EFFECTOR_POSE) {
             geometry_msgs::PoseStamped pose;
             auto it = poses_.find(req.name);
@@ -174,8 +182,8 @@ namespace moveit_state_server {
     }
 
     void MoveitStateServer::goalCB(const moveit_state_server_msgs::GoToStoredStateGoalConstPtr &goal) {
-        // initialize moveit_cpp before first use
-        if (moveit_cpp_ptr_ == nullptr)resetMoveit();
+        // initialize moveit_cpp and JointStorage before first use
+        if (!initialized_) initialize();
         //verify that the named pose has been previously stored
         if (goal->mode == moveit_state_server_msgs::GoToStoredStateGoal::GO_TO_STORED_JOINT_POSITIONS and
             !joint_state_storage_->isJointStateStored(goal->name, true)) {
