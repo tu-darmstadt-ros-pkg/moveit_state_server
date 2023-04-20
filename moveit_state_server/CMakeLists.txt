@@ -40,6 +40,8 @@ include_directories(
 add_executable(moveit_state_server
         src/moveit_state_server.cpp )
 
+add_dependencies(moveit_state_server ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_gencfg)
+
 target_link_libraries(moveit_state_server
         ${catkin_LIBRARIES}
         )
