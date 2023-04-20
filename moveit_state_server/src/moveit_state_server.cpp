@@ -31,8 +31,9 @@ namespace moveit_state_server {
                 pnh.advertiseService(retrieve_pose_service_name_, &MoveitStateServer::retrievePoseService, this);
         switch_controllers_ = nh_.serviceClient<controller_manager_msgs::SwitchController>(
                 "/manipulator_arm_control/controller_manager/switch_controller");
-
-        resetMoveit();
+        // delay moveit initialization to first use of moveit_state_server
+        // avoids crashing at start, possibly due to race condition with controllers
+        // resetMoveit();
 
         // START ACTION SIMPLE ACTION CLIENT
         as_.registerPreemptCallback([this] { preemptCB(); });
@@ -48,13 +49,13 @@ namespace moveit_state_server {
             joint_state_storage_ = std::make_unique<joint_storage::JointStateFileStorage>(folder_path, robot_name_);
             joint_state_storage_->loadAllJointStates();
         }
-
     }
 
     void MoveitStateServer::resetMoveit(){
-        if(moveit_cpp_ptr_ != nullptr)moveit_cpp_ptr_.reset();
+        //if(moveit_cpp_ptr_.() != nullptr)moveit_cpp_ptr_.reset();
+        ROS_INFO("Setup Moveit #25");
         // SETUP MOVEIT_CPP
-        moveit_cpp_ptr_ = std::make_shared<moveit_cpp::MoveItCpp>(pnh_);
+        moveit_cpp_ptr_.reset(new moveit_cpp::MoveItCpp(pnh_));//std::make_shared<moveit_cpp::MoveItCpp>(pnh_);
         moveit_cpp_ptr_->getPlanningSceneMonitorNonConst()->providePlanningSceneService();
         planning_components_ = std::make_shared<moveit_cpp::PlanningComponent>(planning_group_, moveit_cpp_ptr_);
         auto robot_model_ptr = moveit_cpp_ptr_->getRobotModel();
@@ -105,6 +106,7 @@ namespace moveit_state_server {
 
     bool MoveitStateServer::storePoseService(moveit_state_server_msgs::StorePoseRequest &req,
                                              moveit_state_server_msgs::StorePoseResponse &res) {
+        if(moveit_cpp_ptr_.get() == nullptr)resetMoveit();
         if (req.mode == moveit_state_server_msgs::StorePoseRequest::STORE_JOINT_POSITIONS) {
             storeCurrentJointStates(req.name);
         }
@@ -119,6 +121,7 @@ namespace moveit_state_server {
 
     bool MoveitStateServer::retrievePoseService(moveit_state_server_msgs::RetrievePoseRequest &req,
                                                 moveit_state_server_msgs::RetrievePoseResponse &res) {
+        if(moveit_cpp_ptr_.get() == nullptr)resetMoveit();
         if (req.mode == moveit_state_server_msgs::RetrievePoseRequest::RETRIEVE_END_EFFECTOR_POSE) {
             geometry_msgs::PoseStamped pose;
             auto it = poses_.find(req.name);
@@ -175,6 +178,7 @@ namespace moveit_state_server {
     }
 
     void MoveitStateServer::goalCB(const moveit_state_server_msgs::GoToStoredStateGoalConstPtr &goal) {
+        if(moveit_cpp_ptr_.get() == nullptr)resetMoveit();
         //verify that the named pose has been previously stored
         if (goal->mode == moveit_state_server_msgs::GoToStoredStateGoal::GO_TO_STORED_JOINT_POSITIONS and
             !joint_state_storage_->isJointStateStored(goal->name, true)) {

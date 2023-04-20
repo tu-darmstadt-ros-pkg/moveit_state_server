@@ -51,11 +51,11 @@ install(TARGETS moveit_state_server
         RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
         )
 
-#install(DIRECTORY
-#        config
-#        launch
-#        DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
-#        )
+install(DIRECTORY
+        config
+        launch
+        DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+        )
 
 #############
 ## Testing ##
