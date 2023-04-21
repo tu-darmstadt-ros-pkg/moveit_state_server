@@ -35,6 +35,9 @@ namespace moveit_state_server {
         as_.registerPreemptCallback([this] { preemptCB(); });
         as_.start();
 
+        // Action Client for move group actions
+        move_ac_ = std::make_unique<actionlib::ActionClient<moveit_msgs::MoveGroupAction>>("move_group");
+
         // SETUP DYNAMIC RECONFIGURE
         config_server_.setCallback([this](auto &&PH1, auto &&PH2) {
             configCallback(std::forward<decltype(PH1)>(PH1), std::forward<decltype(PH2)>(PH2));
@@ -69,6 +72,7 @@ namespace moveit_state_server {
         plan_request_params_.planning_time = config.planning_time;
         plan_request_params_.planning_attempts = config.planning_attempts;
         ROS_INFO_STREAM("max_velocity_scaling_factor: "<<plan_request_params_.max_velocity_scaling_factor);
+        use_move_group_for_movement_ = config.use_move_group_for_movements;
     }
 
     void MoveitStateServer::initialize() {
@@ -221,16 +225,30 @@ namespace moveit_state_server {
         planning_components_->setStartStateToCurrentState();
         sensor_msgs::JointState joint_state;
         if (joint_state_storage_->getStoredJointState(name, joint_state, false)) {
-            if(!verifyJointStateMoveGroupCompatibility(joint_state)){
-                ROS_ERROR_STREAM("Stored Joint states names do not match joint names"<<joint_state.name[0]<<
-                " of the selected planning group "<<planning_group_<<"!");
-                return false;
+            if(use_move_group_for_movement_){
+                moveit_msgs::Constraints goal_constraints;
+                for (int i = 0; i < joint_names_.size(); i++)
+                {
+                    moveit_msgs::JointConstraint jointConstraint;
+                    jointConstraint.joint_name = joint_state.name[i];
+                    jointConstraint.position = joint_state.position[i];
+                    jointConstraint.weight = 1.0;
+                    goal_constraints.joint_constraints.push_back(jointConstraint);
+                }
+                 goal_.goal.request.goal_constraints.push_back(goal_constraints);
+            }else {
+                if (!verifyJointStateMoveGroupCompatibility(joint_state)) {
+                    ROS_ERROR_STREAM("Stored Joint states names do not match joint names" << joint_state.name[0] <<
+                                                                                          " of the selected planning group "
+                                                                                          << planning_group_ << "!");
+                    return false;
+                }
+                ROS_INFO("Verified move group joint state msg compatibility");
+                robot_state->setVariableValues(joint_state);
+                planning_components_->setGoal(*robot_state);
+                planning_components_->plan(plan_request_params_);
+                planning_components_->execute();
             }
-            ROS_INFO("Verified move group joint state msg compatibility");
-            robot_state->setVariableValues(joint_state);
-            planning_components_->setGoal(*robot_state);
-            planning_components_->plan(plan_request_params_);
-            planning_components_->execute();
         } else {
             ROS_WARN("Joint State is not saved in database");
         }
@@ -238,10 +256,18 @@ namespace moveit_state_server {
     }
 
     bool MoveitStateServer::goToStoredEndeffectorPosition(const std::string &name) {
-        planning_components_->setStartStateToCurrentState();
-        planning_components_->setGoal(poses_[name], end_effector_);
-        planning_components_->plan(plan_request_params_);
-        planning_components_->execute();
+        if(use_move_group_for_movement_){
+            std::vector<double> tolerance_pose(3, 0.01);
+            std::vector<double> tolerance_angle(3, 0.01);
+            moveit_msgs::Constraints pose_goal =
+                    kinematic_constraints::constructGoalConstraints(end_effector_, poses_[name], tolerance_pose, tolerance_angle);
+            goal_.goal.request.goal_constraints.push_back(pose_goal);
+        }else{
+            planning_components_->setStartStateToCurrentState();
+            planning_components_->setGoal(poses_[name], end_effector_);
+            planning_components_->plan(plan_request_params_);
+            planning_components_->execute();
+        }
         return true;
     }
 
@@ -284,11 +310,36 @@ namespace moveit_state_server {
                 resetMoveit();
                 counter++;
             }
+            if(use_move_group_for_movement_){
+                goal_.goal.planning_options.plan_only = false; // plan and move arrm
+                goal_.goal.planning_options.look_around = false;
+                goal_.goal.planning_options.replan = false;
+                goal_.goal.planning_options.planning_scene_diff.is_diff = true;
+                goal_.goal.planning_options.planning_scene_diff.robot_state.is_diff = true;
+                goal_.goal.request.start_state.is_diff = true;
+                goal_.goal.request.allowed_planning_time = planning_time_;
+                goal_.goal.request.num_planning_attempts = planning_attempts_;
+                goal_.goal.request.group_name = goal->planning_group;
+                goal_.goal.request.start_state.joint_state.name = joint_names_;
+                planning_components_->setStartStateToCurrentState();
+                std::vector<double> current_joint_states;
+                planning_components_->getStartState()->copyJointGroupPositions(goal->planning_group,current_joint_states);
+                goal_.goal.request.start_state.joint_state.position = current_joint_states;
+                goal_.goal.request.max_acceleration_scaling_factor = max_acceleration_scaling_factor_;
+                goal_.goal.request.max_velocity_scaling_factor = max_velocity_scaling_factor_;
+            }
             bool successful_movement;
             if (goal->mode == moveit_state_server_msgs::GoToStoredStateGoal::GO_TO_STORED_JOINT_POSITIONS) {
                 successful_movement = goToStoredJointState(goal->name);
             } else {
                 successful_movement = goToStoredEndeffectorPosition(goal->name);
+            }
+            if(use_move_group_for_movement_){
+                move_ac_->sendGoal(goal_.goal);
+                while(true){
+                    auto msg = ros::topic::waitForMessage<moveit_msgs::MoveGroupActionFeedback>("move_group/feedback");
+                    if(msg->feedback.state != "PLANNING" && msg->feedback.state != "MONITOR")break;
+                }
             }
             switchController(true);
             if(successful_movement){

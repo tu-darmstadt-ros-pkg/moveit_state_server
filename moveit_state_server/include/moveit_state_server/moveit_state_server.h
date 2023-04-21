@@ -90,6 +90,7 @@ namespace moveit_state_server {
         ros::ServiceServer retrieve_pose_server;
         robot_model::RobotModelPtr moveit_robot_model_;
         actionlib::SimpleActionServer<moveit_state_server_msgs::GoToStoredStateAction> as_;
+        std::unique_ptr<actionlib::ActionClient<moveit_msgs::MoveGroupAction>> move_ac_;
         std::shared_ptr<moveit_cpp::MoveItCpp> moveit_cpp_ptr_;
         std::shared_ptr<moveit_cpp::PlanningComponent> planning_components_;
         ros::ServiceClient get_planning_scene_;
@@ -98,8 +99,10 @@ namespace moveit_state_server {
         std::map<std::string, geometry_msgs::PoseStamped> poses_;
         std::unique_ptr<joint_storage::JointStateStorage> joint_state_storage_;
         dynamic_reconfigure::Server<moveit_state_server::MoveitStateServerConfig> config_server_;
+        moveit_msgs::MoveGroupActionGoal goal_;
         bool use_database_for_persistent_storage_ = true;
         bool initialized_ = false;
+        bool use_move_group_for_movement_= false;
     private:
     };
 }
