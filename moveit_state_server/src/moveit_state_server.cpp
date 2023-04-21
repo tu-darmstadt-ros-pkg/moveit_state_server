@@ -11,7 +11,6 @@ namespace moveit_state_server {
                                                                          goalCB(std::forward<decltype(PH1)>(PH1));
                                                                      }, false), pnh_(pnh) {
         // SET PARAMETERS FROM LAUNCH FILE
-        pnh.param("planning_group", planning_group_, std::string("arm_group"));
         pnh.param("pose_reference_frame", position_reference_frame_, std::string("world"));
         pnh.param("robot_name", robot_name_, std::string(""));
         pnh.param("hostname", hostname_, std::string("localhost"));
@@ -247,8 +246,9 @@ namespace moveit_state_server {
                 ROS_INFO("Verified move group joint state msg compatibility");
                 robot_state->setVariableValues(joint_state);
                 planning_components_->setGoal(*robot_state);
-                planning_components_->plan(plan_request_params_);
-                planning_components_->execute();
+                auto response = planning_components_->plan(plan_request_params_);
+                if(response.error_code_ != moveit::core::MoveItErrorCode::SUCCESS) return false;
+                return planning_components_->execute();
             }
         } else {
             ROS_WARN("Joint State is not saved in database");
@@ -266,8 +266,9 @@ namespace moveit_state_server {
         }else{
             planning_components_->setStartStateToCurrentState();
             planning_components_->setGoal(poses_[name], end_effector_);
-            planning_components_->plan(plan_request_params_);
-            planning_components_->execute();
+            auto response = planning_components_->plan(plan_request_params_);
+            if(response.error_code_ != moveit::core::MoveItErrorCode::SUCCESS) return false;
+            return planning_components_->execute();
         }
         return true;
     }
@@ -304,7 +305,7 @@ namespace moveit_state_server {
             // strange bug; sometimes controllers are active, but moveit thinks they are inactive
             // resetting moveit_cpp_ptr seems to help
             int counter = 0;
-            while (!moveit_cpp_ptr_->getTrajectoryExecutionManager()->ensureActiveControllersForGroup("arm_group") &&
+            while (!moveit_cpp_ptr_->getTrajectoryExecutionManager()->ensureActiveControllersForGroup(planning_group_) &&
                    counter < 5) {
                 ROS_ERROR("Controllers seem to be inactive #44");
                 ROS_WARN("Resetting moveit params");
