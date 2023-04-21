@@ -37,6 +37,6 @@
         <arg name="load_robot_description" value="true"/>
     </include>-->
     
-    <node name="moveit_state_server" pkg="moveit_state_server" type="moveit_state_server" respawn="false" output="screen"/>
+    <node name="moveit_state_server" pkg="moveit_state_server" type="moveit_state_server" respawn="true" output="screen"/>
 
 </launch>

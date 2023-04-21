@@ -37,7 +37,7 @@ namespace moveit_state_server {
         as_.start();
 
         // Action Client for move group actions
-        move_ac_ = std::make_unique<actionlib::ActionClient<moveit_msgs::MoveGroupAction>>("move_group");
+        move_ac_ = std::make_unique<actionlib::SimpleActionClient<moveit_msgs::MoveGroupAction>>("move_group");
 
         // SETUP DYNAMIC RECONFIGURE
         config_server_.setCallback([this](auto &&PH1, auto &&PH2) {
@@ -337,11 +337,8 @@ namespace moveit_state_server {
                 successful_movement = goToStoredEndeffectorPosition(goal->name);
             }
             if(use_move_group_for_movement_){
-                move_ac_->sendGoal(goal_.goal);
-                while(true){
-                    auto msg = ros::topic::waitForMessage<moveit_msgs::MoveGroupActionFeedback>("move_group/feedback");
-                    if(msg->feedback.state != "PLANNING" && msg->feedback.state != "MONITOR")break;
-                }
+                auto state = move_ac_->sendGoalAndWait(goal_.goal);
+                successful_movement = (state == actionlib::SimpleClientGoalState::SUCCEEDED);
             }
             switchController(true);
             if(successful_movement){

@@ -90,7 +90,7 @@ namespace moveit_state_server {
         ros::ServiceServer retrieve_pose_server;
         robot_model::RobotModelPtr moveit_robot_model_;
         actionlib::SimpleActionServer<moveit_state_server_msgs::GoToStoredStateAction> as_;
-        std::unique_ptr<actionlib::ActionClient<moveit_msgs::MoveGroupAction>> move_ac_;
+        std::unique_ptr<actionlib::SimpleActionClient<moveit_msgs::MoveGroupAction>> move_ac_;
         std::shared_ptr<moveit_cpp::MoveItCpp> moveit_cpp_ptr_;
         std::shared_ptr<moveit_cpp::PlanningComponent> planning_components_;
         ros::ServiceClient get_planning_scene_;
