@@ -18,6 +18,7 @@ namespace moveit_state_server {
         pnh.param("port", port_, 33829);
         pnh.param("folder_path", folder_path_, std::string(""));
         pnh.param("use_database", use_database_for_persistent_storage_, true);
+        pnh.param("use_move_group_for_moving_robot", use_move_group_for_movement_, true);
         // SETUP SERVICES FOR STORING AND RETRIEVING STATES AND FOR SWITCHING THE ARM CONTROLLER
         store_pose_service_name_ = "/store_arm_pose";
         retrieve_pose_service_name_ = "/retrieve_arm_pose";
@@ -311,6 +312,7 @@ namespace moveit_state_server {
                 counter++;
             }
             if(use_move_group_for_movement_){
+                goal_ = moveit_msgs::MoveGroupActionGoal(); // reset old constraints
                 goal_.goal.planning_options.plan_only = false; // plan and move arrm
                 goal_.goal.planning_options.look_around = false;
                 goal_.goal.planning_options.replan = false;

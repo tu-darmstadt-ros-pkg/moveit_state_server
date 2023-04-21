@@ -6,6 +6,7 @@
     <arg name="port" default="33289"/>
     <arg name="database_instead_of_filestorage" default="true"/>
     <arg name="launch_database" default="true"/>
+    <arg name="use_move_group_for_moving_robot" default="true"/>
 
     <param name="moveit_state_server/planning_group" value="arm_group"/>
     <param name="moveit_state_server/pose_reference_frame" value="world"/>
@@ -14,6 +15,7 @@
     <param name="moveit_state_server/robot_name" value="$(arg robot)"/>
     <param name="moveit_state_server/folder_path" value="$(eval find(arg('robot') + '_moveit_config') + '/moveit_state_server_storage/default_file_storage')"/>
     <param name="moveit_state_server/use_database" value="$(arg database_instead_of_filestorage)"/> <!-- database vs file storage -->
+    <param name="moveit_state_server/use_move_group_for_moving_robot" value="$(arg use_move_group_for_moving_robot)"/> <!-- database vs file storage -->
 
     <!-- launch database if launch_database and  database_instead_of_filestorage true-->
     <!-- mongo must be installed see Readme -->

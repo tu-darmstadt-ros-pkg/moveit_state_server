@@ -102,7 +102,7 @@ namespace moveit_state_server {
         moveit_msgs::MoveGroupActionGoal goal_;
         bool use_database_for_persistent_storage_ = true;
         bool initialized_ = false;
-        bool use_move_group_for_movement_= false;
+        bool use_move_group_for_movement_= true;
     private:
     };
 }
