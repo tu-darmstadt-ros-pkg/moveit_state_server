@@ -4,6 +4,7 @@
 #include <moveit/kinematic_constraints/utils.h>
 #include <moveit_state_server/joint_state_storage_database.h>
 #include <moveit_state_server/joint_state_file_storage.h>
+#include <moveit/robot_state/conversions.h>
 
 namespace moveit_state_server {
     MoveitStateServer::MoveitStateServer(ros::NodeHandle &pnh) : as_(nh_, "/move_arm_to_stored_pose",
@@ -323,11 +324,10 @@ namespace moveit_state_server {
                 goal_.goal.request.allowed_planning_time = planning_time_;
                 goal_.goal.request.num_planning_attempts = planning_attempts_;
                 goal_.goal.request.group_name = goal->planning_group;
-                goal_.goal.request.start_state.joint_state.name = joint_names_;
                 planning_components_->setStartStateToCurrentState();
-                std::vector<double> current_joint_states;
-                planning_components_->getStartState()->copyJointGroupPositions(goal->planning_group,current_joint_states);
-                goal_.goal.request.start_state.joint_state.position = current_joint_states;
+                moveit_msgs::RobotState robot_state_msg;
+                moveit::core::robotStateToRobotStateMsg(*planning_components_->getStartState(), robot_state_msg);
+                goal_.goal.request.start_state = robot_state_msg;
                 goal_.goal.request.max_acceleration_scaling_factor = max_acceleration_scaling_factor_;
                 goal_.goal.request.max_velocity_scaling_factor = max_velocity_scaling_factor_;
             }
