@@ -306,7 +306,7 @@ namespace moveit_state_server {
             // strange bug; sometimes controllers are active, but moveit thinks they are inactive
             // resetting moveit_cpp_ptr seems to help
             int counter = 0;
-            while (!moveit_cpp_ptr_->getTrajectoryExecutionManager()->ensureActiveControllersForGroup(planning_group_) &&
+            while (!moveit_cpp_ptr_->getTrajectoryExecutionManagerNonConst()->ensureActiveControllersForGroup(planning_group_) &&
                    counter < 5) {
                 ROS_ERROR("Controllers seem to be inactive #44");
                 ROS_WARN("Resetting moveit params");
@@ -353,7 +353,7 @@ namespace moveit_state_server {
 
     void MoveitStateServer::preemptCB() {
         ROS_WARN("[moveit_state_server] Preempted moveit_state_server.");
-        moveit_cpp_ptr_->getTrajectoryExecutionManager()->stopExecution();
+        moveit_cpp_ptr_->getTrajectoryExecutionManagerNonConst()->stopExecution();
         ROS_WARN("[moveit_state_server] Stopping trajectory execution...");
     }
 
