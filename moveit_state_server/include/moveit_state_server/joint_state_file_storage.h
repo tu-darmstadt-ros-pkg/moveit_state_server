@@ -10,27 +10,27 @@
 
 namespace joint_storage {
 
-    class JointStateFileStorage : public JointStateStorage {
-    public:
-        explicit JointStateFileStorage(std::string folder_path, std::string robot_name);
+class JointStateFileStorage : public JointStateStorage {
+public:
+  explicit JointStateFileStorage(std::string folder_path, std::string robot_name);
 
 
-        bool getStoredJointState(const std::string &name, sensor_msgs::JointState &jointState, bool reload) override;
+  bool getStoredJointState(const std::string &name, sensor_msgs::JointState &jointState, bool reload) override;
 
-        bool
-        storeJointState(sensor_msgs::JointState joint_state, const std::string &name, bool already_exists) override;
+  bool
+  storeJointState(sensor_msgs::JointState joint_state, const std::string &name, bool already_exists) override;
 
-        bool loadAllJointStates() override;
+  bool loadAllJointStates() override;
 
-        void loadJointState(const std::string &path, const std::string &name);
+  void loadJointState(const std::string &path, const std::string &name);
 
-        void testIfDirectoryExistsAndCreateIfNecessary();
+  void testIfDirectoryExistsAndCreateIfNecessary();
 
 
-    private:
-        std::string folder_path_;
-        std::string extension_ = ".joint_state";
-    };
+private:
+  std::string folder_path_;
+  std::string extension_ = ".joint_state";
+};
 
 } // namespace joint_storage
 #include "moveit_state_server/joint_state_file_storage_impl.h"
