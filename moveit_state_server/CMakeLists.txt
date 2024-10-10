@@ -12,6 +12,7 @@ find_package(catkin REQUIRED
         moveit_state_server_msgs
         controller_manager
         dynamic_reconfigure
+        warehouse_ros
         )
 
 find_package(Eigen3 REQUIRED)
