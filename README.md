@@ -5,37 +5,18 @@ for example, in the
 world frame). Later the robot can return to the saved state. For this purpose, the state is given a unique name when it
 is saved via a ROS service. Later an action client, which moves to the stored position using moveit, can be called with
 the assigned name.
-The package uses the moveit_cpp functionality to access the current state and control the robot.
 
-Moreover, the node can store the joint states persistently in a database. Therefore, it makes use of the mongo database
-included in moveit_warehouse. Configured correctly, it stores the joint states in the same database as the moveit motion
-planning rviz plugin. Alternatively, the joint states can be persistently stored by saving them as serialized
-sensor_msgs/JointState. The parameter `database_instead_of_filestorage` in the `moveit_state_server.launch` file decides
-which persistent joint state storage is used.
 
 ### Launching
-
-If you want to make use of persistently storing joint states in the database, the mongo database must be running. This
-can
-be done by selecting the `db` param while launching moveit
-,
-see [moveit documentation: Persistent States](https://ros-planning.github.io/moveit_tutorials/doc/persistent_scenes_and_states/persistent_scenes_and_states.html)
-.
-Alternatively, the database can be launched by setting `launch_database` in the `moveit_state_server.launch` to true or
-launch the `database.launch` file in the moveit_state_server package directly.
-If using the moveit launch file, make sure to select the mongo database plugin and selecting the
-same port and hostname as in the launch file for the moveit state server.
+Launching the moveit_state_server can be done e.g. with the following command:
 
 ```bash
-roslaunch moveit_state_server database.launch
+ros2 launch moveit_state_server moveit_state_server.launch.py
 ```
-
-Launching the moveit_state_server can be done with
-
+In case you robot is started within a namespace (e.g. `/athena`), you can use
 ```bash
-roslaunch moveit_state_server moveit_state_server.launch
+ros2 launch moveit_state_server moveit_state_server.launch.py --namespace /athena --remap /tf:=/athena/tf --remap /tf_static:=/athena/tf_static
 ```
-
 ### Storing joint states / end-effector poses
 
 The service `/store_arm_poses` stores either the
@@ -95,11 +76,6 @@ int32 state
 ### Requirements
 
 This ROS package requires `moveit`, [see here](https://ros-planning.github.io/moveit_tutorials/doc/getting_started/getting_started.html), to be installed
-
-If you want to store states persistently with the database, the `warehouse-ros-mongo` package must be installed.
-```bash
-sudo apt install ros-noetic-warehouse-ros-mongo
-```
 
 ### Contributing
 
