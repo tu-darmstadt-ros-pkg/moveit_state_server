@@ -16,12 +16,16 @@ find_package(sensor_msgs REQUIRED)
 find_package(action_msgs REQUIRED)
 
 # Add service files
-rosidl_generate_interfaces(${PROJECT_NAME}
+rosidl_generate_interfaces(
+  ${PROJECT_NAME}
   "srv/StorePose.srv"
   "srv/RetrievePose.srv"
   "action/GoToStoredState.action"
-  DEPENDENCIES std_msgs geometry_msgs sensor_msgs action_msgs
-)
+  DEPENDENCIES
+  std_msgs
+  geometry_msgs
+  sensor_msgs
+  action_msgs)
 
 # Export dependencies
 ament_export_dependencies(rosidl_default_runtime)

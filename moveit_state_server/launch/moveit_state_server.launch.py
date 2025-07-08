@@ -2,24 +2,28 @@
 import os
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, OpaqueFunction
-from launch.substitutions import LaunchConfiguration, TextSubstitution, PathJoinSubstitution
+from launch.substitutions import (
+    LaunchConfiguration,
+    TextSubstitution,
+    PathJoinSubstitution,
+)
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
 from moveit_configs_utils import MoveItConfigsBuilder
 
-folder_path = os.path.expanduser('~/.ros/moveit_state_server_data')
+folder_path = os.path.expanduser("~/.ros/moveit_state_server_data")
+
+
 def launch_setup(context, *args, **kwargs):
     # Resolve launch arguments
-    robot_name            = LaunchConfiguration("robot_name").perform(context)
-    state_server_yaml     = LaunchConfiguration("state_server_config").perform(context)
+    robot_name = LaunchConfiguration("robot_name").perform(context)
+    state_server_yaml = LaunchConfiguration("state_server_config").perform(context)
 
     # Build MoveIt config package name (<robot>_moveit_config)
-    moveit_config = (
-        MoveItConfigsBuilder(robot_name,
-                             package_name=f"{robot_name}_moveit_config")
-        .to_moveit_configs()
-    )
+    moveit_config = MoveItConfigsBuilder(
+        robot_name, package_name=f"{robot_name}_moveit_config"
+    ).to_moveit_configs()
 
     # (Optional) launch the moveit_state_server itself with the same YAML
     state_server_node = Node(
@@ -32,8 +36,8 @@ def launch_setup(context, *args, **kwargs):
             moveit_config.robot_description_semantic,
             moveit_config.robot_description_kinematics,
             state_server_yaml,
-            {'folder_path': folder_path,
-             "use_sim_time": True}]
+            {"folder_path": folder_path, "use_sim_time": True},
+        ],
     )
 
     return [state_server_node]
