@@ -1,0 +1,7 @@
+/**:
+  ros__parameters:
+    moveit_state_server:
+      pose_reference_frame: "map"
+      max_velocity_scaling_factor: 0.1
+      max_acceleration_scaling_factor: 0.1
+      planning_group: "arm_group"

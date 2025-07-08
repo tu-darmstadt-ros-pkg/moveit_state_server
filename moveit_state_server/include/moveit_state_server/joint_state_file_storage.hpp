@@ -5,8 +5,9 @@
 #ifndef MOVEIT_STATE_SERVER_JOINT_STATE_FILE_STORAGE_H
 #define MOVEIT_STATE_SERVER_JOINT_STATE_FILE_STORAGE_H
 
-#include <moveit_state_server/joint_state_storage.h>
+#include <moveit_state_server/joint_state_storage.hpp>
 #include <fstream>
+#include <sensor_msgs/msg/joint_state.hpp>
 
 namespace joint_storage {
 
@@ -15,10 +16,10 @@ public:
   explicit JointStateFileStorage(std::string folder_path, std::string robot_name);
 
 
-  bool getStoredJointState(const std::string &name, sensor_msgs::JointState &jointState, bool reload) override;
+  bool getStoredJointState(const std::string &name, sensor_msgs::msg::JointState &jointState, bool reload) override;
 
   bool
-  storeJointState(sensor_msgs::JointState joint_state, const std::string &name, bool already_exists) override;
+  storeJointState(const sensor_msgs::msg::JointState& joint_state, const std::string &name) override;
 
   bool loadAllJointStates() override;
 
@@ -33,6 +34,5 @@ private:
 };
 
 } // namespace joint_storage
-#include "moveit_state_server/joint_state_file_storage_impl.h"
 
 #endif //MOVEIT_STATE_SERVER_JOINT_STATE_FILE_STORAGE_H

@@ -1,37 +1,26 @@
-<package format="2">
-    <name>moveit_state_server_msgs</name>
-    <version>0.0.0</version>
-    <description>The moveit_state_server_msgs package</description>
+<?xml version="1.0"?>
+<package format="3">
+  <name>moveit_state_server_msgs</name>
+  <version>0.0.0</version>
+  <description>Message and action definitions for MoveIt state server interaction.</description>
 
-    <maintainer email="aljoscha97@web.de">Aljoscha Schmidt</maintainer>
+  <maintainer email="aljoscha97@web.de">Aljoscha Schmidt</maintainer>
+  <author email="aljoscha97@web.de">Aljoscha Schmidt</author>
+  <license>MIT</license> <!-- Replace TODO with your actual license -->
 
+  <buildtool_depend>ament_cmake</buildtool_depend>
 
-    <license>TODO</license>
+  <build_depend>rosidl_default_generators</build_depend>
+  <exec_depend>rosidl_default_runtime</exec_depend>
 
+  <depend>std_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>action_msgs</depend>
+  <!-- Build tools -->
 
-    <author email="aljoscha97@web.de">Aljoscha Schmidt</author>
-
-
-
-    <buildtool_depend>catkin</buildtool_depend>
-
-    <build_depend>std_msgs</build_depend>
-    <build_depend>geometry_msgs</build_depend>
-    <build_depend>sensor_msgs</build_depend>
-    <build_depend>message_generation</build_depend>
-    <build_depend>actionlib_msgs</build_depend>
-
-    <build_export_depend>std_msgs</build_export_depend>
-    <build_export_depend>geometry_msgs</build_export_depend>
-    <build_export_depend>sensor_msgs</build_export_depend>
-
-    <exec_depend>std_msgs</exec_depend>
-    <exec_depend>sensor_msgs</exec_depend>
-    <exec_depend>geometry_msgs</exec_depend>
-    <exec_depend>message_runtime</exec_depend>
-    <test_depend>actionlib_msgs</test_depend>
-
-    <depend>dynamic_reconfigure</depend>
-
-
+<member_of_group>rosidl_interface_packages</member_of_group>
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
 </package>

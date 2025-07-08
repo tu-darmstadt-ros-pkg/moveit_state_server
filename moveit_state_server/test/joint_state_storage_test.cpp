@@ -1,135 +1,119 @@
+/*  test/joint_state_storage_test.cpp
+ *  Unit tests for JointState*Storage back-ends (ROS 2 version)
+ */
 
 #include <gtest/gtest.h>
-#include <ros/package.h>
-#include <ros/ros.h>
+#include <rclcpp/rclcpp.hpp>
 
-#include <moveit_state_server/joint_state_storage_database_impl.h>
-#include <moveit_state_server/joint_state_file_storage_impl.h>
+#include <ament_index_cpp/get_package_share_directory.hpp>
+#include <filesystem>
 
+#include <moveit_state_server/joint_state_file_storage.hpp>
 
-void testGetStoredJointState(const std::shared_ptr<joint_storage::JointStateStorage> &storage) {
-    // Create a joint state message
-    sensor_msgs::JointState joint_state;
-    joint_state.name = {"joint1", "joint2", "joint3"};
-    joint_state.position = {1.0, 2.0, 3.0};
+using joint_storage::JointStateStorage;
+namespace fs = std::filesystem;
 
-    // Store the joint state
-    EXPECT_TRUE(storage->addJointState(joint_state, "test_joint"));
+/* ------------------------------------------------------------------ */
+/* Helper test routines (unchanged except for msg namespace)          */
+/* ------------------------------------------------------------------ */
+void testGetStoredJointState(const std::shared_ptr<JointStateStorage> &storage)
+{
+  sensor_msgs::msg::JointState js;
+  js.name      = {"joint1", "joint2", "joint3"};
+  js.position  = {1.0, 2.0, 3.0};
 
-    // Retrieve the joint state
-    sensor_msgs::JointState joint_state_out;
-    EXPECT_TRUE(storage->getStoredJointState("test_joint", joint_state_out, true));
-    EXPECT_EQ(joint_state.name, joint_state_out.name);
-    EXPECT_EQ(joint_state.position, joint_state_out.position);
+  ASSERT_TRUE(storage->addJointState(js, "test_joint"));
+
+  sensor_msgs::msg::JointState out;
+  ASSERT_TRUE(storage->getStoredJointState("test_joint", out, true));
+  EXPECT_EQ(js.name,     out.name);
+  EXPECT_EQ(js.position, out.position);
 }
 
-void testOverwriteJointState(const std::shared_ptr<joint_storage::JointStateStorage> &storage) {
-    // Create two test joint states with the same name
-    sensor_msgs::JointState joint_state1;
-    joint_state1.name.push_back("joint1");
-    joint_state1.position.push_back(1.0);
-    joint_state1.velocity.push_back(2.0);
+void testOverwriteJointState(const std::shared_ptr<JointStateStorage> &storage)
+{
+  sensor_msgs::msg::JointState js1, js2;
+  js1.name = {"joint1"}; js1.position = {1.0}; js1.velocity = {2.0};
+  js2.name = {"joint1"}; js2.position = {3.0}; js2.velocity = {4.0};
 
-    sensor_msgs::JointState joint_state2;
-    joint_state2.name.push_back("joint1");
-    joint_state2.position.push_back(3.0);
-    joint_state2.velocity.push_back(4.0);
+  ASSERT_TRUE(storage->addJointState(js1, "test_joint"));
+  ASSERT_TRUE(storage->addJointState(js2, "test_joint"));   // overwrite
 
-    // Add the first joint state to the storage
-    ASSERT_TRUE(storage->addJointState(joint_state1, "test_joint"));
+  sensor_msgs::msg::JointState out;
+  ASSERT_TRUE(storage->getStoredJointState("test_joint", out, false));
 
-    // Add the second joint state to the storage, which should overwrite the first joint state
-    ASSERT_TRUE(storage->addJointState(joint_state2, "test_joint"));
-
-    // Retrieve the joint state from the storage
-    sensor_msgs::JointState retrieved_joint_state;
-    ASSERT_TRUE(storage->getStoredJointState("test_joint", retrieved_joint_state, false));
-
-    // Compare the retrieved joint state with the second joint state
-    ASSERT_EQ(joint_state2.name[0], retrieved_joint_state.name[0]);
-    ASSERT_EQ(joint_state2.position[0], retrieved_joint_state.position[0]);
-    ASSERT_EQ(joint_state2.velocity[0], retrieved_joint_state.velocity[0]);
+  EXPECT_EQ(js2.name,     out.name);
+  EXPECT_EQ(js2.position, out.position);
+  EXPECT_EQ(js2.velocity, out.velocity);
 }
 
-void testReloadedJointStates(const std::shared_ptr<joint_storage::JointStateStorage> &storage,
-                             const sensor_msgs::JointState &joint_state, const std::string &name) {
-    // Create a test joint state
+void testReloadedJointStates(const std::shared_ptr<JointStateStorage> &storage,
+                             const sensor_msgs::msg::JointState &js,
+                             const std::string &name)
+{
+  storage->loadAllJointStates();
 
-    storage->loadAllJointStates();
-
-    // Retrieve the joint state from the storage
-    sensor_msgs::JointState joint_state_out;
-    EXPECT_TRUE(storage->getStoredJointState(name, joint_state_out, true));
-    EXPECT_EQ(joint_state.name, joint_state_out.name);
-    EXPECT_EQ(joint_state.position, joint_state_out.position);
+  sensor_msgs::msg::JointState out;
+  ASSERT_TRUE(storage->getStoredJointState(name, out, true));
+  EXPECT_EQ(js.name,     out.name);
+  EXPECT_EQ(js.position, out.position);
 }
 
-void clearFileStorages(std::string folder) {
-    boost::filesystem::remove_all(folder);
+/* ------------------------------------------------------------------ */
+/*  File-storage helpers                                              */
+/* ------------------------------------------------------------------ */
+static std::shared_ptr<JointStateStorage>
+initializeFileStorage(bool clear_content = false)
+{
+  const std::string folder = "/tmp/moveit_state_server_test";
+    /*
+      ament_index_cpp::get_package_share_directory("moveit_state_server") +
+      "/test/default_test_file_storage";*/
+
+  if (clear_content && fs::exists(folder))
+    fs::remove_all(folder);
+
+  return std::make_shared<joint_storage::JointStateFileStorage>(folder,
+                                                                "athena");
 }
 
-std::shared_ptr<joint_storage::JointStateStorage> initializeStorageDatabase() {
-    std::string hostname = "localhost";
-    int port = 33289;
-    return std::make_shared<joint_storage::JointStateStorageDatabase>(hostname, port, std::string("asterix"));
+/* ------------------------------------------------------------------ */
+/*  GTests                                                             */
+/* ------------------------------------------------------------------ */
+TEST(JointStateFileStorage, GetStoredJointState_FILE)
+{
+  auto storage = initializeFileStorage(true);
+  testGetStoredJointState(storage);
 }
 
-std::shared_ptr<joint_storage::JointStateStorage> initializeFileStorage(bool clear_content = false) {
-    std::string folder_path = ros::package::getPath("moveit_state_server") + "/test/default_test_file_storage";
-    if (clear_content) clearFileStorages(folder_path);
-    return std::make_shared<joint_storage::JointStateFileStorage>(folder_path, std::string("asterix"));
+TEST(JointStateFileStorage, OverwriteJointState_FILE)
+{
+  auto storage = initializeFileStorage(true);
+  testOverwriteJointState(storage);
+}
+
+TEST(JointStateFileStorage, ReloadFromDisk_FILE)
+{
+  auto storage = initializeFileStorage(true);
+
+  sensor_msgs::msg::JointState js;
+  js.name = {"joint1", "joint2", "joint3"};
+  js.position = {1.0, 2.0, 3.0};
+  std::string name = "test_joint";
+
+  storage->addJointState(js, name);
+  storage.reset();                         // destroy instance -> flush file
+
+  storage = initializeFileStorage();       // new instance -> reload
+  testReloadedJointStates(storage, js, name);
 }
 
 
-TEST(JointStateStorageDatabase, GetStoredJointState_DB) {
-    auto storage = initializeStorageDatabase();
-    testGetStoredJointState(storage);
-}
-
-TEST(JointStateStorageDatabase, OverwriteJointState_DB) {
-    auto storage = initializeStorageDatabase();
-    testOverwriteJointState(storage);
-}
-
-TEST(JointStateStorageDatabase, ReloadFromDatabaseOrFile_DB) {
-    auto storage = initializeStorageDatabase();
-    sensor_msgs::JointState joint_state;
-    std::string name = "test_joint";
-    joint_state.name = {"joint1", "joint2", "joint3"};
-    joint_state.position = {1.0, 2.0, 3.0};
-    storage->addJointState(joint_state, name);
-    storage.reset();
-    storage = initializeStorageDatabase();
-    testReloadedJointStates(storage, joint_state, name);
-}
-
-TEST(JointStateFileStorage, GetStoredJointState_FILE) {
-    auto storage = initializeFileStorage();
-    testGetStoredJointState(storage);
-}
-
-TEST(JointStateFileStorage, OverwriteJointState_FILE) {
-    auto storage = initializeFileStorage();
-    testOverwriteJointState(storage);
-}
-
-TEST(JointStateFileStorage, ReloadFromDatabaseOrFile_FILE) {
-    auto storage = initializeFileStorage(true);
-    sensor_msgs::JointState joint_state;
-    std::string name = "test_joint";
-    joint_state.name = {"joint1", "joint2", "joint3"};
-    joint_state.position = {1.0, 2.0, 3.0};
-    storage->addJointState(joint_state, name);
-    storage.reset();
-    storage = initializeFileStorage();
-    testReloadedJointStates(storage, joint_state, name);
-}
-
-//needs to be launched as rostest
-// e.g.: rostest moveit_state_server joint_state_storage_test.test
-// reset of db does not seem to work, clear test/default_warehouse_db.launch
-int main(int argc, char **argv) {
-    ros::init(argc, argv, "test_joint_storage");
-    testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
+int main(int argc, char **argv)
+{
+  rclcpp::init(argc, argv);        // needed for node handles inside storage
+  ::testing::InitGoogleTest(&argc, argv);
+  int ret = RUN_ALL_TESTS();
+  rclcpp::shutdown();
+  return ret;
 }

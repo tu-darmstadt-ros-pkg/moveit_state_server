@@ -1,86 +1,72 @@
-cmake_minimum_required(VERSION 3.06)
+cmake_minimum_required(VERSION 3.25)
 project(moveit_state_server)
 
-set(CMAKE_CXX_STANDARD 14)
-find_package(catkin REQUIRED
-        COMPONENTS
-        roscpp
-        moveit_core
-        moveit_ros_planning
-        moveit_ros_planning_interface
-        geometry_msgs
-        moveit_state_server_msgs
-        controller_manager
-        dynamic_reconfigure
-        warehouse_ros
-        )
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
+find_package(ament_cmake REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(moveit_core REQUIRED)
+find_package(moveit_ros_planning_interface REQUIRED)
+find_package(moveit_state_server_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(controller_manager REQUIRED)
+find_package(controller_orchestrator REQUIRED)
 find_package(Eigen3 REQUIRED)
 
-generate_dynamic_reconfigure_options(config/MoveitStateServer.cfg)
+include_directories(
+        include
+        ${EIGEN3_INCLUDE_DIRS}
+)
 
-catkin_package(
-        LIBRARIES ${PROJECT_NAME}
-        CATKIN_DEPENDS
-        roscpp
+add_library(joint_state_storage_objs
+        src/joint_state_file_storage.cpp          # + src/joint_state_database.cpp ...
+)
+target_include_directories(joint_state_storage_objs PUBLIC include)
+ament_target_dependencies(joint_state_storage_objs
+        rclcpp sensor_msgs
+)
+
+add_executable(moveit_state_server
+        src/moveit_state_server.cpp
+        )
+target_link_libraries(moveit_state_server joint_state_storage_objs)
+ament_target_dependencies(moveit_state_server
+        rclcpp
         moveit_core
         moveit_ros_planning_interface
         moveit_state_server_msgs
+        geometry_msgs
+        controller_manager
+        sensor_msgs
+        tf2_ros
+        controller_orchestrator
 )
-
-include_directories(${EIGEN_INCLUDE_DIRS} include)
-add_definitions(${EIGEN_DEFINITIONS})
-
-include_directories(
-        ${catkin_INCLUDE_DIRS}
-        include
-)
-
-
-
-add_executable(moveit_state_server
-        src/moveit_state_server.cpp )
-
-add_dependencies(moveit_state_server ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_gencfg)
-
-target_link_libraries(moveit_state_server
-        ${catkin_LIBRARIES}
-        )
-
-#############
-## Install ##
-#############
-
-# all install targets should use catkin DESTINATION variables
-# See http://ros.org/doc/api/catkin/html/adv_user_guide/variables.html
 
 install(TARGETS moveit_state_server
-        RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-        )
+        RUNTIME DESTINATION lib/${PROJECT_NAME}
+)
 
 install(DIRECTORY
         config
         launch
-        DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
-        )
+        DESTINATION share/${PROJECT_NAME}
+)
 
-#############
-## Testing ##
-#############
-if (CATKIN_ENABLE_TESTING)
-    find_package(roscpp REQUIRED)
-    find_package(rostest REQUIRED)
-    find_package(roslib REQUIRED) # Provides ros::package
-    set(TEST_LIBRARIES ${PROJECT_NAME} ${catkin_LIBRARIES} ${roscpp_LIBRARIES} ${roslib_LIBRARIES})
-
-    include_directories(
-            ${catkin_INCLUDE_DIRS}
-            ${EIGEN3_INCLUDE_DIRS}
-            ${roscpp_INCLUDE_DIRS}
-            ${roslib_INCLUDE_DIRS}
-            ${rostest_INCLUDE_DIRS}
+if (BUILD_TESTING)
+    find_package(ament_cmake_gtest REQUIRED)
+    ament_add_gtest(joint_state_storage_test test/joint_state_storage_test.cpp)
+    target_link_libraries(joint_state_storage_test joint_state_storage_objs)
+    ament_target_dependencies(joint_state_storage_test
+            rclcpp
+            moveit_core
+            moveit_ros_planning_interface
+            moveit_state_server_msgs
+            geometry_msgs
+            controller_manager
     )
-    ## Add gtest based cpp test target and link libraries
-    catkin_add_gtest(joint_state_storage_test test/joint_state_storage_test.cpp)
-    target_link_libraries(joint_state_storage_test ${catkin_LIBRARIES})
 endif ()
+
+
+ament_package()

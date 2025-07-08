@@ -1,48 +1,28 @@
-cmake_minimum_required(VERSION 3.06)
+cmake_minimum_required(VERSION 3.10)
 project(moveit_state_server_msgs)
 
+# Use modern C++
 set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(catkin REQUIRED COMPONENTS
-        std_msgs
-        geometry_msgs
-        sensor_msgs
-        message_generation
-        actionlib_msgs
-        )
+# Find dependencies
+find_package(ament_cmake REQUIRED)
+find_package(rosidl_default_generators REQUIRED)
 
+# Message dependencies
+find_package(std_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(action_msgs REQUIRED)
 
-## Generate messages in the 'msg' folder
-#add_message_files(
-#        FILES
-#)
-
-## Generate services in the 'srv' folder
-add_service_files(
-   FILES
-  StorePose.srv
-        RetrievePose.srv
- )
-
-## Generate actions in the 'action' folder
-add_action_files(
-        FILES
-        GoToStoredState.action
+# Add service files
+rosidl_generate_interfaces(${PROJECT_NAME}
+  "srv/StorePose.srv"
+  "srv/RetrievePose.srv"
+  "action/GoToStoredState.action"
+  DEPENDENCIES std_msgs geometry_msgs sensor_msgs action_msgs
 )
 
-## Generate added messages and services with any dependencies listed here
-generate_messages(
-        DEPENDENCIES
-        std_msgs
-        geometry_msgs
-        sensor_msgs
-        actionlib_msgs
-)
-
-catkin_package(
-        CATKIN_DEPENDS std_msgs message_runtime
-)
-include_directories(
-        # include
-        ${catkin_INCLUDE_DIRS}
-)
+# Export dependencies
+ament_export_dependencies(rosidl_default_runtime)
+ament_package()
