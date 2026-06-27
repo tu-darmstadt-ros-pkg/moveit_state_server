@@ -29,7 +29,11 @@ def launch_setup(context, *args, **kwargs):
     state_server_node = Node(
         package="moveit_state_server",
         executable="moveit_state_server",
-        name="moveit_state_server",
+        # NOTE: intentionally no "name=" here. Setting it injects a global
+        # "--remap __node:=..." argument that MoveGroupInterface's internally
+        # created helper nodes (which honor global arguments) pick up, renaming
+        # them to the same name and producing duplicate node names in the graph.
+        # The executable already names itself "moveit_state_server" in code.
         output="screen",
         parameters=[
             moveit_config.robot_description,
