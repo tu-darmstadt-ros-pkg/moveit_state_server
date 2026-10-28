@@ -5,7 +5,7 @@
 #include <gtest/gtest.h>
 #include <rclcpp/rclcpp.hpp>
 
-#include <ament_index_cpp/get_package_share_directory.hpp>
+#include <ament_index_cpp/get_package_share_path.hpp>
 #include <filesystem>
 
 #include <moveit_state_server/joint_state_file_storage.hpp>
@@ -69,7 +69,7 @@ static std::shared_ptr<JointStateStorage> initializeFileStorage( bool clear_cont
 {
   const std::string folder = "/tmp/moveit_state_server_test";
   /*
-    ament_index_cpp::get_package_share_directory("moveit_state_server") +
+    ament_index_cpp::get_package_share_path("moveit_state_server").string() +
     "/test/default_test_file_storage";*/
 
   if ( clear_content && fs::exists( folder ) )
