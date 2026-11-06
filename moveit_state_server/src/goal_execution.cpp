@@ -1,6 +1,8 @@
 #include "moveit_state_server/goal_execution.hpp"
 
 #include <algorithm>
+#include <future>
+#include <utility>
 
 namespace moveit_state_server
 {
@@ -26,6 +28,22 @@ std::vector<std::string> controllersForMotion( const std::vector<std::string> &g
   if ( moves_gripper )
     controllers.push_back( "gripper_trajectory_controller" );
   return controllers;
+}
+
+std::string switchAndMove( const controller_orchestrator::ControllerOrchestrator &orchestrator,
+                           const std::vector<std::string> &controllers,
+                           const std::function<bool()> &move )
+{
+  // The async call reports the controller manager's reason, which the blocking one only logs
+  std::promise<std::pair<bool, std::string>> answer;
+  orchestrator.smartSwitchControllerAsync( controllers,
+                                           [&answer]( bool success, const std::string &message ) {
+                                             answer.set_value( { success, message } );
+                                           } );
+  const auto [switched, reason] = answer.get_future().get();
+  if ( !switched )
+    return "Controller switch failed: " + reason;
+  return move() ? "" : "Motion failed";
 }
 
 } // namespace moveit_state_server

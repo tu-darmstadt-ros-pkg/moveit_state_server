@@ -5,5 +5,7 @@ int32 GO_TO_STORED_JOINT_POSITIONS=0
 int32 GO_TO_STORED_END_EFFECTOR_POSE=1
 ---
 int32 success
+# Why the goal failed, empty on success
+string message
 ---
 int32 state

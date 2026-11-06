@@ -167,28 +167,26 @@ void MoveitStateServer::handle_accepted( const std::shared_ptr<GoalHandle> goal_
 {
   std::thread{ [this, goal_handle]() {
     const auto goal = goal_handle->get_goal();
-    bool success{ false };
     std::vector<std::string> target_joints = joint_names_;
     if ( goal->mode == GoToStoredState::Goal::GO_TO_STORED_JOINT_POSITIONS ) {
       sensor_msgs::msg::JointState stored;
       joint_state_storage_->getStoredJointState( goal->name, stored, false );
       target_joints = stored.name;
     }
-    controller_orchestrator_->smartSwitchController(
-        controllersForMotion( joint_names_, target_joints ) );
-
-    if ( goal->mode == GoToStoredState::Goal::GO_TO_STORED_JOINT_POSITIONS )
-      success = goToStoredJointState( goal->name );
-    else
-      success = goToStoredEndeffectorPosition( goal->name );
-
-    // switchController(true);
-
     auto result = std::make_shared<GoToStateAction::Result>();
-    if ( success )
+    result->message = switchAndMove(
+        *controller_orchestrator_, controllersForMotion( joint_names_, target_joints ), [&] {
+          return goal->mode == GoToStoredState::Goal::GO_TO_STORED_JOINT_POSITIONS
+                     ? goToStoredJointState( goal->name )
+                     : goToStoredEndeffectorPosition( goal->name );
+        } );
+    if ( result->message.empty() ) {
       goal_handle->succeed( result );
-    else
+    } else {
+      RCLCPP_ERROR( get_logger(), "Goal '%s' aborted: %s", goal->name.c_str(),
+                    result->message.c_str() );
       goal_handle->abort( result );
+    }
   } }.detach();
 }
 

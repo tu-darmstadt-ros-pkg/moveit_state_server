@@ -1,8 +1,11 @@
 #ifndef MOVEIT_STATE_SERVER__GOAL_EXECUTION_HPP_
 #define MOVEIT_STATE_SERVER__GOAL_EXECUTION_HPP_
 
+#include <functional>
 #include <string>
 #include <vector>
+
+#include <controller_orchestrator/controller_orchestrator.hpp>
 
 namespace moveit_state_server
 {
@@ -14,6 +17,14 @@ namespace moveit_state_server
  */
 std::vector<std::string> controllersForMotion( const std::vector<std::string> &group_joints,
                                                const std::vector<std::string> &target_joints );
+
+/**
+ * Switches to @p controllers, then runs @p move unless the switch failed.
+ * @return Empty on success, otherwise why the goal failed.
+ */
+std::string switchAndMove( const controller_orchestrator::ControllerOrchestrator &orchestrator,
+                           const std::vector<std::string> &controllers,
+                           const std::function<bool()> &move );
 
 } // namespace moveit_state_server
 
