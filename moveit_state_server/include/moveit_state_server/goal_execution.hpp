@@ -20,12 +20,13 @@ std::vector<std::string> controllersForMotion( const std::vector<std::string> &g
                                                const std::vector<std::string> &target_joints );
 
 /**
- * Switches to @p controllers, then runs @p move unless the switch failed.
+ * Switches to @p controllers within @p timeout_s, then runs @p move unless the switch failed.
+ * Waits at most two seconds longer for the switch's answer.
  * @return Empty on success, otherwise why the goal failed.
  */
 std::string switchAndMove( const controller_orchestrator::ControllerOrchestrator &orchestrator,
                            const std::vector<std::string> &controllers,
-                           const std::function<bool()> &move );
+                           const std::function<bool()> &move, int timeout_s = 5 );
 
 /// The goal's result for what switchAndMove returned.
 moveit_state_server_msgs::action::GoToStoredState::Result goalResult( const std::string &failure );

@@ -34,7 +34,7 @@ TEST( ControllersForMotion, AGripperJointInTheMotionNeedsTheGripperController )
              Names{ "arm_trajectory_controller" } );
 }
 
-// A controller manager that answers every switch with a fixed verdict
+// A controller manager that answers every switch with a fixed verdict, or not at all
 class SwitchAndMoveTest : public ::testing::Test
 {
 protected:
@@ -43,10 +43,14 @@ protected:
     node_ = std::make_shared<rclcpp::Node>( "switch_and_move_test" );
     service_ = node_->create_service<SwitchController>(
         "controller_manager/switch_controller",
-        [this]( const std::shared_ptr<SwitchController::Request>,
-                const std::shared_ptr<SwitchController::Response> response ) {
-          response->ok = accept_;
-          response->message = accept_ ? "" : "e-stop engaged";
+        [this]( const std::shared_ptr<rmw_request_id_t> header,
+                const std::shared_ptr<SwitchController::Request> ) {
+          if ( silent_ )
+            return;
+          SwitchController::Response response;
+          response.ok = accept_;
+          response.message = accept_ ? "" : "e-stop engaged";
+          service_->send_response( *header, response );
         } );
     executor_.add_node( node_ );
     spinner_ = std::thread( [this] { executor_.spin(); } );
@@ -64,6 +68,7 @@ protected:
   }
 
   std::atomic<bool> accept_{ true };
+  std::atomic<bool> silent_{ false };
   rclcpp::Node::SharedPtr node_;
   rclcpp::Service<SwitchController>::SharedPtr service_;
   rclcpp::executors::MultiThreadedExecutor executor_;
@@ -95,6 +100,29 @@ TEST_F( SwitchAndMoveTest, AnAcceptedSwitchMoves )
   EXPECT_TRUE( moved );
   EXPECT_EQ( switchAndMove( *orchestrator_, { "arm_trajectory_controller" }, [] { return false; } ),
              "Motion failed" );
+}
+
+// A destroyed orchestrator never calls back, so the goal thread must not wait for it for good
+TEST_F( SwitchAndMoveTest, ASwitchThatNeverAnswersAbortsWithoutMoving )
+{
+  silent_ = true;
+  std::thread destroy( [this] {
+    std::this_thread::sleep_for( std::chrono::milliseconds( 200 ) );
+    orchestrator_.reset();
+  } );
+  bool moved = false;
+  const auto start = std::chrono::steady_clock::now();
+  const std::string message = switchAndMove(
+      *orchestrator_, { "arm_trajectory_controller" },
+      [&] {
+        moved = true;
+        return true;
+      },
+      1 );
+  destroy.join();
+  EXPECT_FALSE( moved );
+  EXPECT_EQ( message, "Controller switch failed: no answer within 3 s" );
+  EXPECT_LT( std::chrono::steady_clock::now() - start, std::chrono::seconds( 4 ) );
 }
 
 TEST( GoalResult, ReportsSuccessAndTheFailure )
