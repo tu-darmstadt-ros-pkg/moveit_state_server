@@ -18,7 +18,7 @@ find_package(Eigen3 REQUIRED)
 include_directories(include ${EIGEN3_INCLUDE_DIRS})
 
 add_library(
-  joint_state_storage_objs
+  joint_state_storage_objs STATIC
   src/joint_state_file_storage.cpp # + src/joint_state_database.cpp ...
 )
 target_include_directories(joint_state_storage_objs PUBLIC include)
