@@ -173,14 +173,13 @@ void MoveitStateServer::handle_accepted( const std::shared_ptr<GoalHandle> goal_
       joint_state_storage_->getStoredJointState( goal->name, stored, false );
       target_joints = stored.name;
     }
-    auto result = std::make_shared<GoToStateAction::Result>();
-    result->message = switchAndMove(
+    const auto result = std::make_shared<GoToStateAction::Result>( goalResult( switchAndMove(
         *controller_orchestrator_, controllersForMotion( joint_names_, target_joints ), [&] {
           return goal->mode == GoToStoredState::Goal::GO_TO_STORED_JOINT_POSITIONS
                      ? goToStoredJointState( goal->name )
                      : goToStoredEndeffectorPosition( goal->name );
-        } );
-    if ( result->message.empty() ) {
+        } ) ) );
+    if ( result->success ) {
       goal_handle->succeed( result );
     } else {
       RCLCPP_ERROR( get_logger(), "Goal '%s' aborted: %s", goal->name.c_str(),

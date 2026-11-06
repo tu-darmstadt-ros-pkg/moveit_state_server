@@ -6,6 +6,7 @@
 #include <vector>
 
 #include <controller_orchestrator/controller_orchestrator.hpp>
+#include <moveit_state_server_msgs/action/go_to_stored_state.hpp>
 
 namespace moveit_state_server
 {
@@ -25,6 +26,9 @@ std::vector<std::string> controllersForMotion( const std::vector<std::string> &g
 std::string switchAndMove( const controller_orchestrator::ControllerOrchestrator &orchestrator,
                            const std::vector<std::string> &controllers,
                            const std::function<bool()> &move );
+
+/// The goal's result for what switchAndMove returned.
+moveit_state_server_msgs::action::GoToStoredState::Result goalResult( const std::string &failure );
 
 } // namespace moveit_state_server
 

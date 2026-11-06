@@ -13,6 +13,7 @@
 
 using controller_manager_msgs::srv::SwitchController;
 using moveit_state_server::controllersForMotion;
+using moveit_state_server::goalResult;
 using moveit_state_server::switchAndMove;
 using Names = std::vector<std::string>;
 
@@ -94,6 +95,15 @@ TEST_F( SwitchAndMoveTest, AnAcceptedSwitchMoves )
   EXPECT_TRUE( moved );
   EXPECT_EQ( switchAndMove( *orchestrator_, { "arm_trajectory_controller" }, [] { return false; } ),
              "Motion failed" );
+}
+
+TEST( GoalResult, ReportsSuccessAndTheFailure )
+{
+  EXPECT_EQ( goalResult( "" ).success, 1 );
+  EXPECT_EQ( goalResult( "" ).message, "" );
+  const auto failed = goalResult( "Controller switch failed: e-stop engaged" );
+  EXPECT_EQ( failed.success, 0 );
+  EXPECT_EQ( failed.message, "Controller switch failed: e-stop engaged" );
 }
 
 int main( int argc, char **argv )

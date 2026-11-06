@@ -58,8 +58,9 @@ if(BUILD_TESTING)
     controller_manager::controller_manager)
   ament_add_gtest(goal_execution_test test/goal_execution_test.cpp
                   src/goal_execution.cpp)
-  target_link_libraries(goal_execution_test
-                        controller_orchestrator::controller_orchestrator)
+  target_link_libraries(
+    goal_execution_test controller_orchestrator::controller_orchestrator
+    moveit_state_server_msgs::moveit_state_server_msgs)
 
 endif()
 

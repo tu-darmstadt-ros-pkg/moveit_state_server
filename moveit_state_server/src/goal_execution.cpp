@@ -46,4 +46,12 @@ std::string switchAndMove( const controller_orchestrator::ControllerOrchestrator
   return move() ? "" : "Motion failed";
 }
 
+moveit_state_server_msgs::action::GoToStoredState::Result goalResult( const std::string &failure )
+{
+  moveit_state_server_msgs::action::GoToStoredState::Result result;
+  result.success = failure.empty();
+  result.message = failure;
+  return result;
+}
+
 } // namespace moveit_state_server
