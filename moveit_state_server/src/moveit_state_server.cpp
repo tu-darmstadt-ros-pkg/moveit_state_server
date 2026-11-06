@@ -2,6 +2,7 @@
 
 #include <controller_manager_msgs/srv/switch_controller.hpp>
 #include <moveit/kinematic_constraints/utils.hpp>
+#include <moveit_state_server/goal_execution.hpp>
 #include <moveit_state_server/joint_state_file_storage.hpp>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
@@ -167,9 +168,14 @@ void MoveitStateServer::handle_accepted( const std::shared_ptr<GoalHandle> goal_
   std::thread{ [this, goal_handle]() {
     const auto goal = goal_handle->get_goal();
     bool success{ false };
-    std::vector<std::string> activate_controllers = { "arm_trajectory_controller",
-                                                      "gripper_trajectory_controller" };
-    controller_orchestrator_->smartSwitchController( activate_controllers );
+    std::vector<std::string> target_joints = joint_names_;
+    if ( goal->mode == GoToStoredState::Goal::GO_TO_STORED_JOINT_POSITIONS ) {
+      sensor_msgs::msg::JointState stored;
+      joint_state_storage_->getStoredJointState( goal->name, stored, false );
+      target_joints = stored.name;
+    }
+    controller_orchestrator_->smartSwitchController(
+        controllersForMotion( joint_names_, target_joints ) );
 
     if ( goal->mode == GoToStoredState::Goal::GO_TO_STORED_JOINT_POSITIONS )
       success = goToStoredJointState( goal->name );

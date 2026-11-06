@@ -25,7 +25,8 @@ target_include_directories(joint_state_storage_objs PUBLIC include)
 target_link_libraries(joint_state_storage_objs rclcpp::rclcpp
                       sensor_msgs::sensor_msgs)
 
-add_executable(moveit_state_server src/moveit_state_server.cpp)
+add_executable(moveit_state_server src/moveit_state_server.cpp
+                                   src/goal_execution.cpp)
 target_link_libraries(moveit_state_server joint_state_storage_objs)
 target_link_libraries(
   moveit_state_server
@@ -55,6 +56,9 @@ if(BUILD_TESTING)
     moveit_state_server_msgs::moveit_state_server_msgs
     geometry_msgs::geometry_msgs
     controller_manager::controller_manager)
+  ament_add_gtest(goal_execution_test test/goal_execution_test.cpp
+                  src/goal_execution.cpp)
+
 endif()
 
 ament_package()
