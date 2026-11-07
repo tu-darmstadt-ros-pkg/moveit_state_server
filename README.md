@@ -82,9 +82,8 @@ a grasp is kept. A failed switch aborts the goal with the controller manager's r
 
 ### Requirements
 
-The switch goes through `hector_controller_orchestrator`, which needs `hector_controller_manager`.
-The stock ros2_control controller manager treats its FORCE_AUTO request as BEST_EFFORT, so it can
-answer ok without starting the arm controller.
+The switch goes through `hector_controller_orchestrator`, which works with `hector_controller_manager`
+and with the stock ros2_control controller manager.
 
 This ROS package requires `moveit`, [see here](https://ros-planning.github.io/moveit_tutorials/doc/getting_started/getting_started.html), to be installed
 
