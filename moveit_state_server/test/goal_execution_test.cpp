@@ -17,21 +17,32 @@ using moveit_state_server::goalResult;
 using moveit_state_server::switchAndMove;
 using Names = std::vector<std::string>;
 
+const Names kGripper = { "gripper_servo_joint" };
+
 TEST( ControllersForMotion, AnArmMotionLeavesTheGripperControllerAlone )
 {
   const Names arm = { "arm_joint_1", "arm_joint_2" };
   // A stored joint state holds every joint of /joint_states, the gripper's too
-  EXPECT_EQ( controllersForMotion( arm, { "arm_joint_1", "arm_joint_2", "gripper_servo_joint" } ),
+  EXPECT_EQ( controllersForMotion( arm, { "arm_joint_1", "arm_joint_2", "gripper_servo_joint" },
+                                   kGripper ),
              Names{ "arm_trajectory_controller" } );
 }
 
 TEST( ControllersForMotion, AGripperJointInTheMotionNeedsTheGripperController )
 {
   const Names arm_with_gripper = { "arm_joint_1", "gripper_servo_joint" };
-  EXPECT_EQ( controllersForMotion( arm_with_gripper, { "arm_joint_1", "gripper_servo_joint" } ),
-             ( Names{ "arm_trajectory_controller", "gripper_trajectory_controller" } ) );
-  EXPECT_EQ( controllersForMotion( arm_with_gripper, { "arm_joint_1" } ),
+  EXPECT_EQ(
+      controllersForMotion( arm_with_gripper, { "arm_joint_1", "gripper_servo_joint" }, kGripper ),
+      ( Names{ "arm_trajectory_controller", "gripper_trajectory_controller" } ) );
+  EXPECT_EQ( controllersForMotion( arm_with_gripper, { "arm_joint_1" }, kGripper ),
              Names{ "arm_trajectory_controller" } );
+}
+
+TEST( ControllersForMotion, TheGripperJointsAreConfigurable )
+{
+  const Names arm_with_gripper = { "arm_joint_1", "finger_joint" };
+  EXPECT_EQ( controllersForMotion( arm_with_gripper, arm_with_gripper, { "finger_joint" } ),
+             ( Names{ "arm_trajectory_controller", "gripper_trajectory_controller" } ) );
 }
 
 // A controller manager that answers every switch with a fixed verdict, or not at all

@@ -98,6 +98,7 @@ private:
   std::string pose_reference_frame_{ "map" };
   std::string folder_path_;
   std::string robot_name_;
+  std::vector<std::string> gripper_joints_;
   int planning_attempts_{ 5 };
   double planning_time_{ 2.0 };
   double max_velocity_scaling_factor_{ 0.1 };

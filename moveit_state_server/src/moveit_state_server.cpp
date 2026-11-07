@@ -32,6 +32,10 @@ MoveitStateServer::MoveitStateServer( const rclcpp::NodeOptions &opts )
   max_acceleration_scaling_factor_ = declare_parameter( "max_acceleration_scaling_factor", 0.1 );
   folder_path_ = declare_parameter<std::string>( "folder_path", "/tmp/moveit_state_server" );
   robot_name_ = declare_parameter<std::string>( "robot_name", "" );
+  rcl_interfaces::msg::ParameterDescriptor read_only;
+  read_only.read_only = true;
+  gripper_joints_ = declare_parameter<std::vector<std::string>>(
+      "gripper_joints", std::vector<std::string>{ "gripper_servo_joint" }, read_only );
 
   /* -------- TF + joint‑state subscription -------- */
   tf_buffer_ = std::make_shared<tf2_ros::Buffer>( get_clock() );
@@ -173,12 +177,13 @@ void MoveitStateServer::handle_accepted( const std::shared_ptr<GoalHandle> goal_
       joint_state_storage_->getStoredJointState( goal->name, stored, false );
       target_joints = stored.name;
     }
-    const auto result = std::make_shared<GoToStateAction::Result>( goalResult( switchAndMove(
-        *controller_orchestrator_, controllersForMotion( joint_names_, target_joints ), [&] {
-          return goal->mode == GoToStoredState::Goal::GO_TO_STORED_JOINT_POSITIONS
-                     ? goToStoredJointState( goal->name )
-                     : goToStoredEndeffectorPosition( goal->name );
-        } ) ) );
+    const auto result = std::make_shared<GoToStateAction::Result>( goalResult(
+        switchAndMove( *controller_orchestrator_,
+                       controllersForMotion( joint_names_, target_joints, gripper_joints_ ), [&] {
+                         return goal->mode == GoToStoredState::Goal::GO_TO_STORED_JOINT_POSITIONS
+                                    ? goToStoredJointState( goal->name )
+                                    : goToStoredEndeffectorPosition( goal->name );
+                       } ) ) );
     if ( result->success ) {
       goal_handle->succeed( result );
     } else {
