@@ -7,10 +7,12 @@
 #include <thread>
 #include <vector>
 
+#include <controller_manager_msgs/srv/list_controllers.hpp>
 #include <controller_manager_msgs/srv/switch_controller.hpp>
 #include <moveit_state_server/goal_execution.hpp>
 #include <rclcpp/rclcpp.hpp>
 
+using controller_manager_msgs::srv::ListControllers;
 using controller_manager_msgs::srv::SwitchController;
 using moveit_state_server::controllersForMotion;
 using moveit_state_server::goalResult;
@@ -52,10 +54,15 @@ protected:
   void SetUp() override
   {
     node_ = std::make_shared<rclcpp::Node>( "switch_and_move_test" );
-    service_ = node_->create_service<SwitchController>(
-        "controller_manager/switch_controller",
-        [this]( const std::shared_ptr<rmw_request_id_t> header,
-                const std::shared_ptr<SwitchController::Request> ) {
+    // force_auto lets the orchestrator send the switch without planning it
+    cm_node_ = std::make_shared<rclcpp::Node>( "controller_manager" );
+    cm_node_->declare_parameter( "capabilities", std::vector<std::string>{ "force_auto" } );
+    list_service_ = cm_node_->create_service<ListControllers>(
+        "~/list_controllers",
+        []( const ListControllers::Request::SharedPtr, ListControllers::Response::SharedPtr ) { } );
+    service_ = cm_node_->create_service<SwitchController>(
+        "~/switch_controller", [this]( const std::shared_ptr<rmw_request_id_t> header,
+                                       const std::shared_ptr<SwitchController::Request> ) {
           if ( silent_ )
             return;
           SwitchController::Response response;
@@ -64,6 +71,7 @@ protected:
           service_->send_response( *header, response );
         } );
     executor_.add_node( node_ );
+    executor_.add_node( cm_node_ );
     spinner_ = std::thread( [this] { executor_.spin(); } );
     orchestrator_ = std::make_unique<controller_orchestrator::ControllerOrchestrator>( node_ );
     const auto probe =
@@ -81,6 +89,8 @@ protected:
   std::atomic<bool> accept_{ true };
   std::atomic<bool> silent_{ false };
   rclcpp::Node::SharedPtr node_;
+  rclcpp::Node::SharedPtr cm_node_;
+  rclcpp::Service<ListControllers>::SharedPtr list_service_;
   rclcpp::Service<SwitchController>::SharedPtr service_;
   rclcpp::executors::MultiThreadedExecutor executor_;
   std::thread spinner_;
