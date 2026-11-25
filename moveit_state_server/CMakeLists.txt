@@ -18,24 +18,27 @@ find_package(Eigen3 REQUIRED)
 include_directories(include ${EIGEN3_INCLUDE_DIRS})
 
 add_library(
-  joint_state_storage_objs
+  joint_state_storage_objs STATIC
   src/joint_state_file_storage.cpp # + src/joint_state_database.cpp ...
 )
 target_include_directories(joint_state_storage_objs PUBLIC include)
-target_link_libraries(joint_state_storage_objs rclcpp::rclcpp sensor_msgs::sensor_msgs)
+target_link_libraries(joint_state_storage_objs rclcpp::rclcpp
+                      sensor_msgs::sensor_msgs)
 
-add_executable(moveit_state_server src/moveit_state_server.cpp)
+add_executable(moveit_state_server src/moveit_state_server.cpp
+                                   src/goal_execution.cpp)
 target_link_libraries(moveit_state_server joint_state_storage_objs)
-target_link_libraries(moveit_state_server
-                      rclcpp::rclcpp
-                      moveit_core::moveit_core
-                      moveit_ros_planning_interface::moveit_ros_planning_interface
-                      moveit_state_server_msgs::moveit_state_server_msgs
-                      geometry_msgs::geometry_msgs
-                      controller_manager::controller_manager
-                      sensor_msgs::sensor_msgs
-                      tf2_ros::tf2_ros
-                      controller_orchestrator::controller_orchestrator)
+target_link_libraries(
+  moveit_state_server
+  rclcpp::rclcpp
+  moveit_core::moveit_core
+  moveit_ros_planning_interface::moveit_ros_planning_interface
+  moveit_state_server_msgs::moveit_state_server_msgs
+  geometry_msgs::geometry_msgs
+  controller_manager::controller_manager
+  sensor_msgs::sensor_msgs
+  tf2_ros::tf2_ros
+  controller_orchestrator::controller_orchestrator)
 
 install(TARGETS moveit_state_server RUNTIME DESTINATION lib/${PROJECT_NAME})
 
@@ -45,13 +48,20 @@ if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
   ament_add_gtest(joint_state_storage_test test/joint_state_storage_test.cpp)
   target_link_libraries(joint_state_storage_test joint_state_storage_objs)
-  target_link_libraries(joint_state_storage_test
-                        rclcpp::rclcpp
-                        moveit_core::moveit_core
-                        moveit_ros_planning_interface::moveit_ros_planning_interface
-                        moveit_state_server_msgs::moveit_state_server_msgs
-                        geometry_msgs::geometry_msgs
-                        controller_manager::controller_manager)
+  target_link_libraries(
+    joint_state_storage_test
+    rclcpp::rclcpp
+    moveit_core::moveit_core
+    moveit_ros_planning_interface::moveit_ros_planning_interface
+    moveit_state_server_msgs::moveit_state_server_msgs
+    geometry_msgs::geometry_msgs
+    controller_manager::controller_manager)
+  ament_add_gtest(goal_execution_test test/goal_execution_test.cpp
+                  src/goal_execution.cpp)
+  target_link_libraries(
+    goal_execution_test controller_orchestrator::controller_orchestrator
+    moveit_state_server_msgs::moveit_state_server_msgs)
+
 endif()
 
 ament_package()

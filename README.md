@@ -73,7 +73,17 @@ int32 success
 int32 state
 ```
 
+### Controller switching
+
+Before a goal moves the arm, the server activates `arm_trajectory_controller`, and
+`gripper_trajectory_controller` too if one of the `gripper_joints` (default
+`["gripper_servo_joint"]`) is part of the motion. Otherwise the gripper controller is left alone, so
+a grasp is kept. A failed switch aborts the goal with the controller manager's reason.
+
 ### Requirements
+
+The switch goes through `hector_controller_orchestrator`, which works with `hector_controller_manager`
+and with the stock ros2_control controller manager.
 
 This ROS package requires `moveit`, [see here](https://ros-planning.github.io/moveit_tutorials/doc/getting_started/getting_started.html), to be installed
 

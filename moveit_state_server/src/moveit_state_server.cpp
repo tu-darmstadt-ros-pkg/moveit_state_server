@@ -2,6 +2,7 @@
 
 #include <controller_manager_msgs/srv/switch_controller.hpp>
 #include <moveit/kinematic_constraints/utils.hpp>
+#include <moveit_state_server/goal_execution.hpp>
 #include <moveit_state_server/joint_state_file_storage.hpp>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
@@ -31,6 +32,10 @@ MoveitStateServer::MoveitStateServer( const rclcpp::NodeOptions &opts )
   max_acceleration_scaling_factor_ = declare_parameter( "max_acceleration_scaling_factor", 0.1 );
   folder_path_ = declare_parameter<std::string>( "folder_path", "/tmp/moveit_state_server" );
   robot_name_ = declare_parameter<std::string>( "robot_name", "" );
+  rcl_interfaces::msg::ParameterDescriptor read_only;
+  read_only.read_only = true;
+  gripper_joints_ = declare_parameter<std::vector<std::string>>(
+      "gripper_joints", std::vector<std::string>{ "gripper_servo_joint" }, read_only );
 
   /* -------- TF + joint‑state subscription -------- */
   tf_buffer_ = std::make_shared<tf2_ros::Buffer>( get_clock() );
@@ -166,23 +171,26 @@ void MoveitStateServer::handle_accepted( const std::shared_ptr<GoalHandle> goal_
 {
   std::thread{ [this, goal_handle]() {
     const auto goal = goal_handle->get_goal();
-    bool success{ false };
-    std::vector<std::string> activate_controllers = { "arm_trajectory_controller",
-                                                      "gripper_trajectory_controller" };
-    controller_orchestrator_->smartSwitchController( activate_controllers );
-
-    if ( goal->mode == GoToStoredState::Goal::GO_TO_STORED_JOINT_POSITIONS )
-      success = goToStoredJointState( goal->name );
-    else
-      success = goToStoredEndeffectorPosition( goal->name );
-
-    // switchController(true);
-
-    auto result = std::make_shared<GoToStateAction::Result>();
-    if ( success )
+    std::vector<std::string> target_joints = joint_names_;
+    if ( goal->mode == GoToStoredState::Goal::GO_TO_STORED_JOINT_POSITIONS ) {
+      sensor_msgs::msg::JointState stored;
+      joint_state_storage_->getStoredJointState( goal->name, stored, false );
+      target_joints = stored.name;
+    }
+    const auto result = std::make_shared<GoToStateAction::Result>( goalResult(
+        switchAndMove( *controller_orchestrator_,
+                       controllersForMotion( joint_names_, target_joints, gripper_joints_ ), [&] {
+                         return goal->mode == GoToStoredState::Goal::GO_TO_STORED_JOINT_POSITIONS
+                                    ? goToStoredJointState( goal->name )
+                                    : goToStoredEndeffectorPosition( goal->name );
+                       } ) ) );
+    if ( result->success ) {
       goal_handle->succeed( result );
-    else
+    } else {
+      RCLCPP_ERROR( get_logger(), "Goal '%s' aborted: %s", goal->name.c_str(),
+                    result->message.c_str() );
       goal_handle->abort( result );
+    }
   } }.detach();
 }
 
